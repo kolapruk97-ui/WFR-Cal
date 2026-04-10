@@ -243,7 +243,7 @@ tailwind.config = {
           <span class="pill-dot pill-3"></span><span class="font-semibold text-base">3 mg</span>
         </label>
         <label class="flex items-center gap-3 px-4 py-3 rounded-lg bg-pink-50 dark:bg-pink-900/30 border border-pink-300 dark:border-pink-700 cursor-pointer">
-          <input type="checkbox" class="pill-check w-5 h-5 accent-brand-600" data-mg="5" checked />
+          <input type="checkbox" class="pill-check w-5 h-5 accent-brand-600" data-mg="5" />
           <span class="pill-dot pill-5"></span><span class="font-semibold text-base">5 mg</span>
         </label>
       </div>
@@ -287,14 +287,14 @@ tailwind.config = {
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันที่เริ่มกินยา</label>
         <div class="flex mt-1 gap-1">
           <input type="text" id="startDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
-          <label class="relative px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="startDatePicker" class="absolute inset-0 opacity-0 cursor-pointer" tabindex="-1" /></label>
+          <label class="relative inline-flex items-center justify-center px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="startDatePicker" class="absolute inset-0 w-full h-full cursor-pointer" style="opacity:0.01;font-size:16px;-webkit-appearance:none;min-height:44px;" tabindex="-1" /></label>
         </div>
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันนัดครั้งถัดไป</label>
         <div class="flex mt-1 gap-1">
           <input type="text" id="endDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
-          <label class="relative px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="endDatePicker" class="absolute inset-0 opacity-0 cursor-pointer" tabindex="-1" /></label>
+          <label class="relative inline-flex items-center justify-center px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="endDatePicker" class="absolute inset-0 w-full h-full cursor-pointer" style="opacity:0.01;font-size:16px;-webkit-appearance:none;min-height:44px;" tabindex="-1" /></label>
         </div>
       </div>
       <div>
