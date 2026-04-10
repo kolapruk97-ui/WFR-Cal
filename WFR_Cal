@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Warfarin Planner PRO V.1 Beta</title>
+<meta name="description" content="Warfarin Planner PRO V.1 Beta — เครื่องมือคำนวณขนาดยาวาร์ฟาริน พร้อมคำแนะนำปรับขนาดตาม INR" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Sarabun', 'Inter', 'system-ui', 'sans-serif'],
+      },
+      colors: {
+        brand: {
+          50:  '#eff6ff',
+          100: '#dbeafe',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  html { font-family: 'Sarabun', 'Inter', sans-serif; }
+  body { font-feature-settings: "kern"; -webkit-font-smoothing: antialiased; }
+  .pill-dot { display:inline-block; width:1.25rem; height:1.25rem; border-radius:9999px; vertical-align: middle; margin-right: .375rem; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+  .pill-1 { background:#e5e7eb; box-shadow: inset 0 0 0 1px #9ca3af; } /* 1mg - gray/white */
+  .pill-2 { background:#ff8c00; } /* 2mg - dark orange */
+  .pill-3 { background:#87ceeb; } /* 3mg - sky blue */
+  .pill-5 { background:#ff69b4; } /* 5mg - hot pink */
+  .day-header[data-day="0"] { background:#fee2e2; color:#dc2626; } /* อา - แดง */
+  .day-header[data-day="1"] { background:#fef9c3; color:#a16207; } /* จ - เหลือง */
+  .day-header[data-day="2"] { background:#fce7f3; color:#db2777; } /* อ - ชมพู */
+  .day-header[data-day="3"] { background:#d1fae5; color:#059669; } /* พ - เขียว */
+  .day-header[data-day="4"] { background:#ffedd5; color:#ea580c; } /* พฤ - ส้ม */
+  .day-header[data-day="5"] { background:#dbeafe; color:#2563eb; } /* ศ - ฟ้า */
+  .day-header[data-day="6"] { background:#ede9fe; color:#7c3aed; } /* ส - ม่วง */
+  .dark .day-header[data-day="0"] { background:#7f1d1d; color:#fca5a5; }
+  .dark .day-header[data-day="1"] { background:#713f12; color:#fde047; }
+  .dark .day-header[data-day="2"] { background:#831843; color:#f9a8d4; }
+  .dark .day-header[data-day="3"] { background:#064e3b; color:#6ee7b7; }
+  .dark .day-header[data-day="4"] { background:#7c2d12; color:#fdba74; }
+  .dark .day-header[data-day="5"] { background:#1e3a5f; color:#93c5fd; }
+  .dark .day-header[data-day="6"] { background:#4c1d95; color:#c4b5fd; }
+  .day-cell { transition: all .15s ease; }
+  .day-cell:hover { transform: translateY(-2px); }
+  .schedule-card { transition: all .2s ease; }
+  .schedule-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1); }
+  .schedule-card.selected { outline: 3px solid #3b82f6; outline-offset: 2px; }
+  input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+  .chip { display:inline-flex; align-items:center; gap:.25rem; padding:.125rem .5rem; border-radius:9999px; font-size:.75rem; font-weight:500; }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+  @media print {
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+    body { background: white !important; color: black !important; }
+    .schedule-card { break-inside: avoid; page-break-inside: avoid; }
+    main { max-width: 100% !important; }
+  }
+  .print-only { display: none; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn .25s ease; }
+</style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen transition-colors">
+
+<!-- Header -->
+<header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800 no-print">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+      </div>
+      <div>
+        <h1 class="text-lg md:text-xl font-bold leading-tight">Warfarin Planner <span class="text-xs font-semibold text-brand-600 dark:text-brand-500 align-top">PRO</span> <span class="text-xs font-normal text-slate-400">V.1 Beta</span></h1>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btnChangelog" title="Change Log" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-500">
+        📝
+      </button>
+      <button id="btnPrint" title="พิมพ์/บันทึก PDF" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      </button>
+      <button id="btnTheme" title="สลับธีมสว่าง/มืด" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+        <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <svg class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+      </button>
+      <button id="btnReset" title="ล้างข้อมูล" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- Reference Table: Dosage Adjustment (open by default, collapsible) -->
+  <section class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden no-print">
+    <details open>
+      <summary class="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-brand-600 to-brand-700 text-white hover:brightness-110 cursor-pointer">
+        <div class="flex items-center gap-2">
+          <span>📖</span>
+          <h2 class="font-semibold text-sm md:text-base">Recommend Dosage Adjustment for Warfarin Maintenance Therapy</h2>
+        </div>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </summary>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs md:text-sm border-collapse">
+          <thead>
+            <tr class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+              <th class="p-2 border border-slate-300 dark:border-slate-600 text-left font-semibold">Target INR</th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600">Low</th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600">Slightly low</th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600 bg-green-100 dark:bg-green-900/40">In range</th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600">Slightly high</th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600">High</th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600">INR 5.0 - 8.9<br><span class="text-[10px] font-normal">(no bleeding)</span></th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600">INR ≥ 9.0<br><span class="text-[10px] font-normal">(no bleeding)</span></th>
+              <th class="p-2 border border-slate-300 dark:border-slate-600 bg-red-100 dark:bg-red-900/40">Major bleeding<br><span class="text-[10px] font-normal">(any INR)</span></th>
+            </tr>
+          </thead>
+          <tbody class="text-center">
+            <tr>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 font-bold bg-blue-50 dark:bg-blue-900/30">INR 2.0 - 3.0</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR &lt; 1.5</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR 1.5 - 1.9</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 bg-green-50 dark:bg-green-900/20 font-semibold">INR 2.0 - 3.0</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR 3.1 - 3.9</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR 4.0 - 4.9</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600" rowspan="2">INR 5.0 - 8.9</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600" rowspan="2">INR ≥ 9.0</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 bg-red-50 dark:bg-red-900/20" rowspan="2">Major bleeding</td>
+            </tr>
+            <tr>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 font-bold bg-blue-50 dark:bg-blue-900/30">INR 2.5 - 3.5</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR &lt; 1.9</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR 1.9 - 2.4</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 bg-green-50 dark:bg-green-900/20 font-semibold">INR 2.5 - 3.5</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR 3.6 - 4.5</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600">INR 4.6 - 4.9</td>
+            </tr>
+            <tr class="bg-slate-50 dark:bg-slate-900/50">
+              <td class="p-2 border border-slate-300 dark:border-slate-600 font-bold text-left">Action</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-orange-700 dark:text-orange-400 font-semibold">Increase<br>10 - 20%</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-amber-700 dark:text-amber-400 font-semibold">Increase<br>5 - 10%</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-green-700 dark:text-green-400 font-semibold bg-green-50 dark:bg-green-900/20">No Change</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-amber-700 dark:text-amber-400 font-semibold">Decrease<br>5 - 10%</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-orange-700 dark:text-orange-400 font-semibold">Hold 1 dose<br><span class="text-[10px] font-normal">+ decrease 10%</span></td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-red-700 dark:text-red-400 font-semibold">Hold 1-2 doses<br><span class="text-[10px] font-normal">+ Vit K 1 mg PO</span></td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-red-700 dark:text-red-400 font-semibold">Hold<br>Vit K 5-10 mg PO</td>
+              <td class="p-2 border border-slate-300 dark:border-slate-600 text-red-800 dark:text-red-300 font-bold bg-red-50 dark:bg-red-900/20">Hold<br>Vit K 10 mg IV<br>+ FFP<br><span class="text-[10px] font-normal">repeat q 12 hrs</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-5 py-3 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700">
+        <p>• หากค่า INR มากหรือน้อยกว่าเป้าหมายเล็กน้อย (±0.2) อาจพิจารณาคงขนาดยาเดิม</p>
+        <p>• หากผู้ป่วยเพิ่งพบค่า INR มากหรือน้อยกว่าเป้าหมายเป็นครั้งแรก ๆ ที่เคยปรับได้ตามเป้าหมายก่อน (±0.5 target INR) อาจพิจารณาคงขนาดยาเดิม และนัดตรวจค่า INR อีกครั้งภายใน 1 - 2 สัปดาห์</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- INR -->
+  <section class="bg-gradient-to-br from-brand-50 to-sky-50 dark:from-slate-800 dark:to-slate-800 rounded-2xl shadow-sm border border-brand-100 dark:border-slate-700 p-5">
+    <h2 class="font-bold text-lg flex items-center gap-2 mb-3">
+      <span>🧪</span> INR
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ค่า INR วันนี้</label>
+        <input type="number" id="pINR" step="0.1" min="0" max="15" class="w-full mt-1 px-3 py-2 text-lg font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="เช่น 2.5" />
+      </div>
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">INR เป้าหมาย</label>
+        <select id="pTarget" class="w-full mt-1 px-3 py-2 text-lg font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none">
+          <option value="2-3">2.0 - 3.0</option>
+          <option value="2.5-3.5">2.5 - 3.5</option>
+        </select>
+      </div>
+    </div>
+    <div id="inrSuggestion" class="mt-3 text-sm"></div>
+  </section>
+
+  <!-- Dose Calculator -->
+  <section class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+    <h2 class="font-bold text-lg flex items-center gap-2 mb-4">
+      <span class="text-brand-600">💊</span> คำนวณขนาดยา
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ขนาดยาเดิม (mg/สัปดาห์)</label>
+        <input type="number" id="prevDose" step="1" min="0" max="150" class="w-full mt-1 px-4 py-3 text-xl font-semibold rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="0" />
+        <button type="button" id="btnOpenPillCounter" class="mt-2 w-full px-3 py-2 text-sm font-semibold rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 active:scale-95 transition">
+          💊 นับเม็ดยา
+        </button>
+      </div>
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ขนาดยาใหม่ (mg/สัปดาห์)</label>
+        <input type="number" id="newDose" step="1" min="0" max="150" class="w-full mt-1 px-4 py-3 text-xl font-semibold rounded-lg bg-brand-50 dark:bg-slate-900 border-2 border-brand-300 dark:border-brand-700 focus:border-brand-500 focus:outline-none" placeholder="0" />
+      </div>
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">% เปลี่ยนแปลง</label>
+        <div id="pctChange" class="mt-1 px-4 py-3 text-xl font-bold rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500">—</div>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 block text-center">ปรับขนาดยาจากขนาดเดิม (เพิ่ม/ลดทีละ 1 mg)</label>
+      <div id="adjustButtons" class="flex flex-wrap gap-2 justify-center"></div>
+    </div>
+  </section>
+
+  <!-- Options -->
+  <section class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+    <h2 class="font-bold text-lg flex items-center gap-2 mb-4">
+      <span class="text-brand-600">⚙️</span> ตั้งค่าตัวเลือก
+    </h2>
+    <div>
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 block">ขนาดเม็ดยาที่มี</label>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <label class="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 cursor-pointer">
+          <input type="checkbox" class="pill-check w-5 h-5 accent-brand-600" data-mg="1" />
+          <span class="pill-dot pill-1"></span><span class="font-semibold text-base">1 mg</span>
+        </label>
+        <label class="flex items-center gap-3 px-4 py-3 rounded-lg bg-orange-50 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 cursor-pointer">
+          <input type="checkbox" class="pill-check w-5 h-5 accent-brand-600" data-mg="2" checked />
+          <span class="pill-dot pill-2"></span><span class="font-semibold text-base">2 mg</span>
+        </label>
+        <label class="flex items-center gap-3 px-4 py-3 rounded-lg bg-sky-50 dark:bg-sky-900/30 border border-sky-300 dark:border-sky-700 cursor-pointer">
+          <input type="checkbox" class="pill-check w-5 h-5 accent-brand-600" data-mg="3" checked />
+          <span class="pill-dot pill-3"></span><span class="font-semibold text-base">3 mg</span>
+        </label>
+        <label class="flex items-center gap-3 px-4 py-3 rounded-lg bg-pink-50 dark:bg-pink-900/30 border border-pink-300 dark:border-pink-700 cursor-pointer">
+          <input type="checkbox" class="pill-check w-5 h-5 accent-brand-600" data-mg="5" checked />
+          <span class="pill-dot pill-5"></span><span class="font-semibold text-base">5 mg</span>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <label class="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 cursor-pointer select-none">
+          <input type="checkbox" id="allowHalf" class="w-5 h-5 accent-brand-600 flex-shrink-0" checked />
+          <span class="text-base font-semibold">อนุญาตให้แบ่งครึ่งเม็ด</span>
+        </label>
+        <div>
+          <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">สัปดาห์เริ่มจากวัน</label>
+          <select id="weekStart" class="w-full mt-1 px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none text-base">
+            <option value="0">อาทิตย์ (อา - ส)</option>
+            <option value="1" selected>จันทร์ (จ - อา)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-400">
+      <span id="maxDailyInfo">ขนาดสูงสุด/วัน: 15 mg</span>
+    </div>
+  </section>
+
+  <!-- Calculate Button (standalone) -->
+  <div class="flex justify-center no-print">
+    <button id="btnCalculate" class="w-full md:w-auto px-10 py-4 rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 text-white text-lg font-semibold shadow-lg hover:shadow-xl active:scale-95 transition">
+      แสดงตัวเลือกการจัดยา
+    </button>
+  </div>
+
+  <!-- Results -->
+  <!-- Dispensing Calculator (above schedule grid) -->
+  <section id="dispenseSection" class="hidden bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 fade-in">
+    <h2 class="font-bold text-lg flex items-center gap-2 mb-4">
+      <span class="text-brand-600">📅</span> คำนวณจำนวนยาที่ต้องจ่าย
+      <span class="text-xs font-normal text-slate-500">(ใช้ตารางที่เลือก)</span>
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันที่เริ่มกินยา</label>
+        <div class="flex mt-1 gap-1">
+          <input type="text" id="startDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
+          <input type="date" id="startDatePicker" class="sr-only" tabindex="-1" />
+          <button type="button" onclick="document.getElementById('startDatePicker').showPicker()" class="px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition" title="เลือกวันที่">📅</button>
+        </div>
+      </div>
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันนัดครั้งถัดไป</label>
+        <div class="flex mt-1 gap-1">
+          <input type="text" id="endDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
+          <input type="date" id="endDatePicker" class="sr-only" tabindex="-1" />
+          <button type="button" onclick="document.getElementById('endDatePicker').showPicker()" class="px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition" title="เลือกวันที่">📅</button>
+        </div>
+      </div>
+      <div>
+        <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">จำนวนวัน</label>
+        <div class="flex mt-1 gap-1">
+          <button type="button" id="dayMinus" class="px-3 py-2 rounded-lg bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-bold text-lg hover:bg-red-200 dark:hover:bg-red-800 active:scale-95 transition">−</button>
+          <input type="number" id="dayCount" min="1" max="365" step="1" class="flex-1 min-w-0 px-4 py-3 text-base text-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="—" />
+          <button type="button" id="dayPlus" class="px-3 py-2 rounded-lg bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 font-bold text-lg hover:bg-green-200 dark:hover:bg-green-800 active:scale-95 transition">+</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Schedule Results (below dispensing) -->
+  <section id="resultsSection" class="hidden fade-in">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-lg flex items-center gap-2">
+        <span class="text-brand-600">📋</span> ตารางการจัดยา
+        <span id="resultCount" class="chip bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300"></span>
+      </h2>
+      <div class="flex items-center gap-2 text-xs no-print">
+        <span class="text-slate-500">เรียงตาม:</span>
+        <select id="sortBy" class="px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <option value="leastChange">เปลี่ยนน้อยสุด</option>
+          <option value="simple">ความเรียบง่าย</option>
+          <option value="uniform">กินเท่ากันทุกวัน</option>
+          <option value="fewType">เม็ดยาน้อยชนิด</option>
+        </select>
+      </div>
+    </div>
+    <div id="schedulesGrid" class="grid grid-cols-1 gap-5"></div>
+  </section>
+
+  <!-- Pill Counter Modal: Visual Matrix -->
+  <div id="pillModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="pillModalBg"></div>
+    <div class="relative max-w-5xl mx-auto mt-4 mb-4 max-h-[94vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-4 md:p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">💊 คำนวณขนาดยาเดิม</h3>
+        <button id="btnClosePillModal" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-xl">✕</button>
+      </div>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">☑ เติมทั้งสัปดาห์ | ± แถว ปรับทีละเม็ด | ± ช่อง ปรับทีละครึ่งเม็ด | กดเม็ดยาเอาออก</p>
+
+      <div class="overflow-x-auto mb-4" id="pillMatrixContainer"></div>
+
+      <!-- Total -->
+      <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl mb-4 text-center border border-green-200 dark:border-green-700">
+        <span class="text-sm text-slate-500">รวมทั้งสัปดาห์ = </span>
+        <span id="pillTotalWeekly" class="text-3xl font-bold text-green-600 dark:text-green-400">0 mg</span>
+      </div>
+
+      <button id="btnApplyPillCount" class="w-full py-3 rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 text-white font-bold text-lg shadow-lg hover:shadow-xl active:scale-95 transition">
+        ใช้ขนาดนี้เป็นขนาดยาเดิม
+      </button>
+    </div>
+  </div>
+
+  <!-- Print summary -->
+  <section class="print-only mt-6 p-4 border-t-2 border-slate-300">
+    <div id="printSummary"></div>
+  </section>
+
+  <footer class="text-center text-xs text-slate-400 dark:text-slate-500 py-6 no-print">
+    <p>⚠️ เครื่องมือนี้ใช้เพื่อช่วยคำนวณเท่านั้น การตัดสินใจให้ยาต้องอยู่ภายใต้ดุลยพินิจของบุคลากรทางการแพทย์</p>
+    <p class="mt-2">Warfarin Planner PRO V.1 Beta</p>
+    <p class="mt-1">Inspired by <a href="https://warfarin-net.github.io/warfarin-planner/" target="_blank" rel="noopener" class="text-brand-500 hover:underline">Warfarin คิดแป๊ปเดียว!</a> โดย ภก.นราวิชญ์ คำยวง</p>
+    <p class="mt-1">ข้อมูลทั้งหมดบันทึกในเครื่องของคุณเท่านั้น · ไม่มีการส่งข้อมูลออก</p>
+  </footer>
+</main>
+
+<script>
+/* ====================== State ====================== */
+const STATE = {
+  patient: { target:'2-3', inr:'' },
+  currentPattern: null,
+  currentPillMatrix: null,
+  prevDose: 0,
+  newDose: 0,
+  pills: [2, 3, 5],
+  allowHalf: true,
+  dayPattern: 'auto',
+  weekStart: 1,
+  schedules: [],
+  selectedIndex: -1,
+  startDate: '',
+  endDate: ''
+};
+
+/* ====================== Helpers ====================== */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+// Buddhist Era date helpers
+function isoToBE(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${Number(y) + 543}`;
+}
+function beToISO(be) {
+  if (!be) return '';
+  const parts = be.replace(/\s/g, '').split('/');
+  if (parts.length !== 3) return '';
+  const [d, m, by] = parts;
+  const y = Number(by) - 543;
+  const dd = Number(d), mm = Number(m);
+  if (!y || y < 1900 || y > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+  return `${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+}
+function setDateInput(id, iso) {
+  const el = $(id);
+  el.dataset.iso = iso;
+  el.value = isoToBE(iso);
+}
+function getDateISO(id) {
+  return $(id).dataset.iso || beToISO($(id).value) || '';
+}
+
+const DAY_NAMES_SUN = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const DAY_NAMES_FULL = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+// Thai day colors: Sun=red, Mon=yellow, Tue=pink, Wed=green, Thu=orange, Fri=blue, Sat=purple
+const DAY_BG_COLORS = ['#fee2e2','#fef9c3','#fce7f3','#d1fae5','#ffedd5','#dbeafe','#ede9fe'];
+const DAY_TEXT_COLORS = ['#dc2626','#a16207','#db2777','#059669','#ea580c','#2563eb','#7c3aed'];
+const DAY_BG_DARK = ['#7f1d1d','#713f12','#831843','#064e3b','#7c2d12','#1e3a5f','#4c1d95'];
+const DAY_TEXT_DARK = ['#fca5a5','#fde047','#f9a8d4','#6ee7b7','#fdba74','#93c5fd','#c4b5fd'];
+const PILL_COLORS = { 1: '#e5e7eb', 2: '#ff8c00', 3: '#87ceeb', 5: '#ff69b4' };
+const PILL_TEXT_COLORS = { 1: '#374151', 2: '#fff', 3: '#075985', 5: '#fff' };
+const PILL_BORDER_COLORS = { 1: '#9ca3af', 2: '#e06800', 3: '#38bdf8', 5: '#db2777' };
+
+function fmtDose(x) {
+  // Show exact value: up to 2 decimals, at least 1
+  const n = Number(x);
+  if (n === Math.floor(n)) return n.toFixed(1);        // 28 → "28.0"
+  if (n * 10 === Math.floor(n * 10)) return n.toFixed(1); // 31.5 → "31.5"
+  return n.toFixed(2);                                   // 29.75 → "29.75"
+}
+function fmt(x) {
+  return fmtDose(x);
+}
+function keyComboToMg(combo) {
+  let sum = 0;
+  for (const mg in combo) sum += combo[mg].whole * Number(mg) + combo[mg].half * Number(mg) / 2;
+  return sum;
+}
+function comboKey(combo) {
+  const keys = Object.keys(combo).sort((a,b)=>Number(a)-Number(b));
+  return keys.map(k => `${k}:${combo[k].whole}+${combo[k].half}h`).join('|');
+}
+function comboPillCount(combo) {
+  let n = 0;
+  for (const mg in combo) n += combo[mg].whole + combo[mg].half;
+  return n;
+}
+function comboTypeCount(combo) {
+  let n = 0;
+  for (const mg in combo) if (combo[mg].whole + combo[mg].half > 0) n++;
+  return n;
+}
+function comboHalves(combo) {
+  let n = 0;
+  for (const mg in combo) n += combo[mg].half;
+  return n;
+}
+
+/* ====================== Algorithm: find pill combinations ====================== */
+const comboCache = new Map();
+function findCombinations(targetMg, pillStrengths, allowHalf, maxPills = 4) {
+  if (targetMg < 0) return [];
+  if (targetMg === 0) return [{}];
+  if (targetMg > 15) return [];
+  const sorted = [...pillStrengths].sort((a,b)=>b-a);
+  const key = `${targetMg}|${sorted.join(',')}|${allowHalf}|${maxPills}`;
+  if (comboCache.has(key)) return comboCache.get(key);
+
+  const results = [];
+  const unit = 0.5;
+  const targetUnits = Math.round(targetMg / unit);
+
+  function backtrack(idx, remainingUnits, current, pillCount) {
+    if (remainingUnits === 0) {
+      // clone
+      const clone = {};
+      for (const k in current) if (current[k].whole || current[k].half) clone[k] = {...current[k]};
+      results.push(clone);
+      return;
+    }
+    if (idx >= sorted.length || pillCount >= maxPills || remainingUnits < 0) return;
+
+    const pillMg = sorted[idx];
+    const pillUnits = pillMg * 2;      // whole pill in 0.5-mg units
+    const halfUnits = pillMg;           // half pill
+    const maxWhole = Math.min(Math.floor(remainingUnits / pillUnits), maxPills - pillCount);
+
+    for (let w = maxWhole; w >= 0; w--) {
+      const afterWhole = remainingUnits - w * pillUnits;
+      if (allowHalf && afterWhole >= halfUnits && pillCount + w + 1 <= maxPills) {
+        current[pillMg] = { whole: w, half: 1 };
+        backtrack(idx + 1, afterWhole - halfUnits, current, pillCount + w + 1);
+      }
+      current[pillMg] = { whole: w, half: 0 };
+      backtrack(idx + 1, afterWhole, current, pillCount + w);
+    }
+    delete current[pillMg];
+  }
+
+  backtrack(0, targetUnits, {}, 0);
+
+  // dedupe
+  const seen = new Set();
+  const unique = results.filter(c => {
+    const k = comboKey(c);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  // rank: fewer types > fewer pills > fewer halves
+  unique.sort((a,b) => {
+    const ta = comboTypeCount(a), tb = comboTypeCount(b);
+    if (ta !== tb) return ta - tb;
+    const pa = comboPillCount(a), pb = comboPillCount(b);
+    if (pa !== pb) return pa - pb;
+    return comboHalves(a) - comboHalves(b);
+  });
+
+  comboCache.set(key, unique);
+  return unique;
+}
+
+function bestComboFor(targetMg, pills, allowHalf) {
+  const combos = findCombinations(targetMg, pills, allowHalf);
+  return combos.length ? combos[0] : null;
+}
+
+/* ====================== Schedule generator ====================== */
+function generateSchedules(weeklyTarget, pills, allowHalf, dayPattern) {
+  if (weeklyTarget <= 0 || pills.length === 0) return [];
+  const schedules = [];
+  const seen = new Set();
+
+  function addSchedule(sched) {
+    // sched = array of 7 combos (null = stop)
+    const keys = sched.map(c => c ? comboKey(c) : 'X');
+    const sigKey = keys.join('/');
+    if (seen.has(sigKey)) return;
+    seen.add(sigKey);
+
+    // compute metrics
+    const distinctDoses = new Set();
+    let totalPills = 0, totalHalves = 0, totalTypes = new Set();
+    let stopDays = 0, totalMg = 0;
+    for (const c of sched) {
+      if (!c) { stopDays++; distinctDoses.add(0); continue; }
+      const mg = keyComboToMg(c);
+      totalMg += mg;
+      distinctDoses.add(Math.round(mg * 2) / 2);
+      totalPills += comboPillCount(c);
+      totalHalves += comboHalves(c);
+      for (const m in c) if (c[m].whole + c[m].half > 0) totalTypes.add(m);
+    }
+    schedules.push({
+      days: sched,
+      stopDays,
+      distinctDoses: distinctDoses.size,
+      totalPills,
+      totalHalves,
+      typeCount: totalTypes.size,
+      totalMg: Math.round(totalMg * 100) / 100
+    });
+  }
+
+  // Place special/stop days based on pattern
+  function placeDays(normalCombo, specialCombo, specialCount, stopCount) {
+    // returns array of 7 combos
+    const sched = new Array(7).fill(null).map(()=>normalCombo);
+
+    const isFriSun = false;
+    const isMonWedFri = false;
+
+    // Day indices (using internal Sun=0 ... Sat=6)
+    // fri-sun: special days from end (Sun=0, Sat=6, Fri=5) -- actually we want Fri/Sat/Sun
+    const friSunOrder = [0, 6, 5]; // Sun, Sat, Fri
+    const monWedFriOrder = [1, 3, 5]; // Mon, Wed, Fri
+    const autoOrderSpecial = [0, 6, 5, 4, 3, 2, 1]; // Sun, Sat, Fri... (ท้ายสัปดาห์ก่อน — คนไข้จำง่าย)
+    const autoOrderStop = [0, 6, 5]; // Sun, Sat, Fri
+
+    let stopSlots, specialSlots;
+    if (isFriSun) {
+      // stop first from Sun, then special from remaining of Fri/Sat/Sun
+      stopSlots = friSunOrder.slice(0, stopCount);
+      specialSlots = friSunOrder.filter(d => !stopSlots.includes(d)).slice(0, specialCount);
+      // If not enough, add more
+      if (specialSlots.length < specialCount) {
+        const extras = [5,4,3,2,1].filter(d=>!stopSlots.includes(d)&&!specialSlots.includes(d));
+        while (specialSlots.length < specialCount && extras.length) specialSlots.push(extras.shift());
+      }
+    } else if (isMonWedFri) {
+      specialSlots = monWedFriOrder.slice(0, specialCount);
+      stopSlots = [6, 0, 2].filter(d=>!specialSlots.includes(d)).slice(0, stopCount);
+    } else {
+      // auto
+      stopSlots = autoOrderStop.slice(0, stopCount);
+      specialSlots = autoOrderSpecial.filter(d=>!stopSlots.includes(d)).slice(0, specialCount);
+    }
+
+    for (const d of stopSlots) sched[d] = null;
+    for (const d of specialSlots) sched[d] = specialCombo;
+    return sched;
+  }
+
+  const MAX_STOPS = 3;
+  const MAX_SPECIAL = 3;
+
+  // Case 1: Uniform (all days same dose)
+  {
+    const perDay = weeklyTarget / 7;
+    const combos = findCombinations(perDay, pills, allowHalf);
+    for (const c of combos.slice(0, 3)) {
+      addSchedule(new Array(7).fill(c));
+    }
+  }
+
+  // Case 2: With stop days, remaining days uniform
+  for (let stops = 1; stops <= MAX_STOPS; stops++) {
+    const active = 7 - stops;
+    const perDay = weeklyTarget / active;
+    const combos = findCombinations(perDay, pills, allowHalf);
+    for (const c of combos.slice(0, 2)) {
+      addSchedule(placeDays(c, c, 0, stops));
+    }
+  }
+
+  // Case 3: Non-uniform — normal days + special days (no stop)
+  for (let special = 1; special <= MAX_SPECIAL; special++) {
+    const normal = 7 - special;
+    // try normal dose from 0.5 mg to 15 mg
+    for (let nd = 0.5; nd <= 15; nd += 0.5) {
+      const specialTotal = weeklyTarget - normal * nd;
+      if (specialTotal <= 0) continue;
+      const sd = specialTotal / special;
+      if (sd < 0.5 || sd > 15) continue;
+      if (Math.round(sd * 2) / 2 !== sd) continue;
+      if (Math.abs(sd - nd) < 0.25) continue; // essentially uniform — skip
+      // Avoid extreme differences
+      if (Math.max(sd,nd)/Math.max(Math.min(sd,nd),0.5) > 3) continue;
+
+      const normalCombos = findCombinations(nd, pills, allowHalf);
+      if (!normalCombos.length) continue;
+      const specialCombos = findCombinations(sd, pills, allowHalf);
+      if (!specialCombos.length) continue;
+
+      addSchedule(placeDays(normalCombos[0], specialCombos[0], special, 0));
+    }
+  }
+
+  // Case 4: Non-uniform with stops
+  for (let stops = 1; stops <= 2; stops++) {
+    for (let special = 1; special <= 2; special++) {
+      const normal = 7 - stops - special;
+      if (normal < 1) continue;
+      for (let nd = 0.5; nd <= 15; nd += 0.5) {
+        const specialTotal = weeklyTarget - normal * nd;
+        if (specialTotal <= 0) continue;
+        const sd = specialTotal / special;
+        if (sd < 0.5 || sd > 15) continue;
+        if (Math.round(sd * 2) / 2 !== sd) continue;
+        if (Math.abs(sd - nd) < 0.25) continue;
+        if (Math.max(sd,nd)/Math.max(Math.min(sd,nd),0.5) > 3) continue;
+
+        const normalCombos = findCombinations(nd, pills, allowHalf);
+        if (!normalCombos.length) continue;
+        const specialCombos = findCombinations(sd, pills, allowHalf);
+        if (!specialCombos.length) continue;
+
+        addSchedule(placeDays(normalCombos[0], specialCombos[0], special, stops));
+      }
+    }
+  }
+
+  return schedules;
+}
+
+function rankSchedules(schedules, mode) {
+  const ranked = [...schedules];
+  const pattern = STATE.currentPattern; // from pill counter (if available)
+
+  ranked.forEach(s => {
+    const activeDays = 7 - s.stopDays;
+    s.avgPillsPerDay = activeDays > 0 ? s.totalPills / activeDays : 99;
+    s.maxPillsPerDay = 0;
+    for (const d of s.days) {
+      if (d) { const n = comboPillCount(d); if (n > s.maxPillsPerDay) s.maxPillsPerDay = n; }
+    }
+    // Similarity: compare at pill level if available, else mg level
+    const pillMatrix = STATE.currentPillMatrix;
+    if (pattern) {
+      s.patternDiff = 0;
+      s.daysChanged = 0;
+      s.pillChanges = 0;
+      for (let d = 0; d < 7; d++) {
+        const oldMg = pattern[d] || 0;
+        const newCombo = s.days[d];
+        const newMg = newCombo ? keyComboToMg(newCombo) : 0;
+        const mgDiff = Math.abs(newMg - oldMg);
+        s.patternDiff += mgDiff;
+        if (mgDiff > 0.01) s.daysChanged++;
+
+        // Pill-level comparison: count how many individual pills changed
+        if (pillMatrix) {
+          [1,2,3,5].forEach(mg => {
+            const oldCount = (pillMatrix[mg] && pillMatrix[mg][d]) || 0;
+            let newCount = 0;
+            if (newCombo && newCombo[mg]) {
+              newCount = newCombo[mg].whole + newCombo[mg].half * 0.5;
+            }
+            s.pillChanges += Math.abs(newCount - oldCount);
+          });
+        }
+      }
+    } else {
+      s.patternDiff = 999;
+      s.daysChanged = 7;
+      s.pillChanges = 999;
+    }
+  });
+
+  ranked.sort((a, b) => {
+    if (mode === 'leastChange' && pattern) {
+      if (a.daysChanged !== b.daysChanged) return a.daysChanged - b.daysChanged;
+      if (a.pillChanges !== b.pillChanges) return a.pillChanges - b.pillChanges;
+      if (a.patternDiff !== b.patternDiff) return a.patternDiff - b.patternDiff;
+    } else if (mode === 'uniform') {
+      if (a.distinctDoses !== b.distinctDoses) return a.distinctDoses - b.distinctDoses;
+    } else if (mode === 'fewType') {
+      if (a.typeCount !== b.typeCount) return a.typeCount - b.typeCount;
+    } else if (mode === 'simple') {
+      // simple: เรียบง่ายที่สุด
+      if (a.distinctDoses !== b.distinctDoses) return a.distinctDoses - b.distinctDoses;
+      if (a.totalPills !== b.totalPills) return a.totalPills - b.totalPills;
+    }
+
+    // Default fallback
+    if (a.stopDays !== b.stopDays) return a.stopDays - b.stopDays;
+    if (a.maxPillsPerDay !== b.maxPillsPerDay) return a.maxPillsPerDay - b.maxPillsPerDay;
+    if (a.totalHalves !== b.totalHalves) return a.totalHalves - b.totalHalves;
+    if (a.totalPills !== b.totalPills) return a.totalPills - b.totalPills;
+    if (a.distinctDoses !== b.distinctDoses) return a.distinctDoses - b.distinctDoses;
+    return a.typeCount - b.typeCount;
+  });
+  return ranked;
+}
+
+/* ====================== Rendering ====================== */
+function renderPillBadge(mg, whole, half) {
+  if (!whole && !half) return '';
+  const color = PILL_COLORS[mg];
+  const textColor = PILL_TEXT_COLORS[mg];
+  const borderColor = PILL_BORDER_COLORS[mg];
+  const pillStyle = `background:${color};color:${textColor};border:2px solid ${borderColor};width:28px;height:28px;font-size:13px;`;
+  let html = '<span class="inline-flex items-center flex-wrap justify-center gap-0.5 mr-1 mb-0.5 align-middle">';
+  // Whole pills: render each one individually
+  for (let i = 0; i < whole; i++) {
+    html += `<span class="inline-flex items-center justify-center rounded-full font-bold" style="${pillStyle}">${mg}</span>`;
+  }
+  // Half pill: semi-circle
+  if (half) {
+    html += `<span class="inline-flex items-center justify-center rounded-full font-bold" style="${pillStyle}clip-path:inset(0 50% 0 0);">${mg}</span>`;
+  }
+  html += '</span>';
+  return html;
+}
+
+function renderCombo(combo) {
+  if (!combo) return '<span class="text-slate-400 italic">หยุดยา</span>';
+  const parts = [];
+  const mgs = Object.keys(combo).map(Number).sort((a,b)=>a-b);
+  for (const mg of mgs) {
+    const { whole, half } = combo[mg];
+    if (whole || half) parts.push(renderPillBadge(mg, whole, half));
+  }
+  return parts.join('');
+}
+
+function renderSchedule(sched, index) {
+  const weekStart = STATE.weekStart;
+  const dayOrder = weekStart === 1
+    ? [1,2,3,4,5,6,0]
+    : [0,1,2,3,4,5,6];
+  const totalMg = sched.totalMg;
+  const stopChip = sched.stopDays > 0
+    ? `<span class="chip bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">⏸ หยุด ${sched.stopDays} วัน</span>` : '';
+  const uniformChip = sched.distinctDoses === 1
+    ? `<span class="chip bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">✓ เท่ากันทุกวัน</span>`
+    : `<span class="chip bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">${sched.distinctDoses} ระดับขนาด</span>`;
+  const halfChip = sched.totalHalves > 0
+    ? `<span class="chip bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">½ × ${sched.totalHalves}</span>` : '';
+  const changeChip = (STATE.currentPattern && sched.daysChanged !== undefined)
+    ? (sched.daysChanged === 0
+      ? `<span class="chip bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">✓ เหมือนเดิม</span>`
+      : `<span class="chip bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">เปลี่ยน ${sched.daysChanged} วัน</span>`)
+    : '';
+
+  const cells = dayOrder.map(d => {
+    const combo = sched.days[d];
+    const isStop = combo === null;
+    const mg = isStop ? 0 : keyComboToMg(combo);
+    return `
+      <div class="day-cell flex-1 min-w-0 rounded-xl text-center overflow-hidden ${isStop ? 'bg-slate-100 dark:bg-slate-700/50' : 'bg-slate-50 dark:bg-slate-900/50'}">
+        <div class="day-header py-1.5 font-bold text-sm" data-day="${d}">${DAY_NAMES_SUN[d]}</div>
+        <div class="p-2">
+          <div class="text-base font-bold ${isStop ? 'text-slate-400' : 'text-brand-700 dark:text-brand-400'}">${isStop ? '—' : fmt(mg)+' mg'}</div>
+          <div class="mt-2 flex flex-wrap justify-center">${isStop ? '<span class="text-slate-400 text-sm">หยุด</span>' : renderCombo(combo)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Pill summary: use date range if available, else 1 week
+  const dispResult = calcDispenseForSchedule(sched);
+  let pillSummaryLabel = 'รวมยา 1 สัปดาห์:';
+  let pillSource = {};
+  if (dispResult && dispResult.days > 0) {
+    pillSummaryLabel = `จ่ายยา ${dispResult.days} วัน (${fmt(dispResult.totalMg)} mg):`;
+    pillSource = dispResult.dispense;
+  } else {
+    // Fallback: 1-week summary
+    const weeklyPills = {};
+    for (const dayCombo of sched.days) {
+      if (!dayCombo) continue;
+      for (const mg in dayCombo) {
+        const m = Number(mg);
+        if (!weeklyPills[m]) weeklyPills[m] = { whole: 0, half: 0 };
+        weeklyPills[m].whole += dayCombo[mg].whole;
+        weeklyPills[m].half += dayCombo[mg].half;
+      }
+    }
+    for (const mg in weeklyPills) {
+      const { whole, half } = weeklyPills[mg];
+      const total = whole + Math.ceil(half / 2);
+      if (total > 0) pillSource[mg] = total;
+    }
+  }
+  const pillSummary = Object.keys(pillSource).map(Number).sort((a,b)=>a-b).map(mg => {
+    const count = pillSource[mg];
+    const color = PILL_COLORS[mg];
+    const borderColor = PILL_BORDER_COLORS[mg];
+    const textColor = PILL_TEXT_COLORS[mg];
+    return `<span class="inline-flex items-center gap-1.5 mr-4">
+      <span class="inline-flex items-center justify-center rounded-full font-bold" style="background:${color};color:${textColor};border:2px solid ${borderColor};width:22px;height:22px;font-size:10px;">${mg}</span>
+      <span class="text-sm text-slate-700 dark:text-slate-300">${mg}mg: <b>${count} เม็ด</b></span>
+    </span>`;
+  }).join('');
+
+  return `
+    <div class="schedule-card bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 cursor-pointer ${STATE.selectedIndex === index ? 'selected' : ''}" data-index="${index}">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-lg text-brand-700 dark:text-brand-400">ตัวเลือก #${index+1}</span>
+          ${uniformChip}
+          ${stopChip}
+          ${halfChip}
+          ${changeChip}
+        </div>
+        <div class="text-right">
+          <div class="text-sm text-slate-500">รวม</div>
+          <div class="font-bold text-lg">${fmt(totalMg)} mg</div>
+        </div>
+      </div>
+      <div class="flex gap-1 overflow-x-auto">${cells}</div>
+      <div class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">${pillSummaryLabel}</div>
+        <div class="flex flex-wrap">${pillSummary}</div>
+      </div>
+    </div>`;
+}
+
+function renderAdjustButtons() {
+  const prev = Number($('#prevDose').value) || 0;
+  const steps = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
+  const container = $('#adjustButtons');
+  container.innerHTML = steps.map(s => {
+    const target = prev + s;
+    if (target < 0) return '';
+    const color = s < 0 ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800'
+                : s > 0 ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600';
+    const pct = prev > 0 ? Math.round((s / prev) * 1000) / 10 : null;
+    const pctStr = pct === null ? '' : (pct > 0 ? `+${pct}%` : pct === 0 ? '0%' : `${pct}%`);
+    return `<button data-target="${target}" class="adjust-btn px-3 py-2 text-xs font-semibold rounded-lg border ${color} transition">
+      ${pctStr}<br><span class="font-bold text-sm">${fmt(target)}</span>
+    </button>`;
+  }).filter(Boolean).join('');
+  container.querySelectorAll('.adjust-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $('#newDose').value = btn.dataset.target;
+      updatePct();
+      clearResults();
+         });
+  });
+}
+
+function updatePct() {
+  const prev = Number($('#prevDose').value) || 0;
+  const neu = Number($('#newDose').value) || 0;
+  STATE.prevDose = prev; STATE.newDose = neu;
+  const el = $('#pctChange');
+  if (prev === 0 || neu === 0) { el.textContent = '—'; el.className = 'mt-1 px-4 py-3 text-xl font-bold rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500'; return; }
+  const pct = ((neu - prev) / prev) * 100;
+  const rounded = Math.round(pct * 10) / 10;
+  const sign = rounded > 0 ? '+' : '';
+  el.textContent = `${sign}${rounded}%`;
+  if (rounded > 0) el.className = 'mt-1 px-4 py-3 text-xl font-bold rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400';
+  else if (rounded < 0) el.className = 'mt-1 px-4 py-3 text-xl font-bold rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400';
+  else el.className = 'mt-1 px-4 py-3 text-xl font-bold rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300';
+}
+
+/* ====================== INR Suggestion ====================== */
+function suggestFromINR() {
+  const inr = Number($('#pINR').value);
+  const target = $('#pTarget').value;
+  const container = $('#inrSuggestion');
+  if (!inr) { container.innerHTML = '<p class="text-xs text-slate-500">กรอก INR เพื่อดูคำแนะนำ</p>'; return; }
+
+  let [lo, hi] = target.split('-').map(Number);
+  let rec = null; let color = 'blue'; let icon = 'ℹ️';
+
+  // Cutoffs matched exactly to reference table per target range
+  // Target 2-3:   low <1.5, sLow 1.5-1.9, in 2-3, sHigh 3.1-3.9, high 4.0-4.9
+  // Target 2.5-3.5: low <1.9, sLow 1.9-2.4, in 2.5-3.5, sHigh 3.6-4.5, high 4.6-4.9
+  const lowCut = (lo === 2) ? 1.5 : 1.9;
+  const slightlyHighMax = (hi === 3) ? 4.0 : 4.6;
+
+  if (inr < lowCut) {
+    rec = { text: 'เพิ่มขนาดยา 10-20%', pct: 15, action: 'เพิ่ม' };
+    color = 'orange'; icon = '⬆️';
+  } else if (inr < lo) {  // slightly low: 1.5-1.9 (target 2-3) or 1.9-2.4 (target 2.5-3.5)
+    rec = { text: 'เพิ่มขนาดยา 5-10%', pct: 7.5, action: 'เพิ่ม' };
+    color = 'amber'; icon = '↗️';
+  } else if (inr <= hi) {
+    rec = { text: 'คงขนาดยาเดิม (INR In range)', pct: 0, action: 'คงเดิม' };
+    color = 'green'; icon = '✓';
+  } else if (inr < slightlyHighMax) {
+    rec = { text: 'ลดขนาดยา 5-10% หรือคงเดิมแล้วตรวจซ้ำ', pct: -7.5, action: 'ลด' };
+    color = 'amber'; icon = '↘️';
+  } else if (inr < 5) {
+    rec = { text: 'หยุดยา 1 วัน แล้วลดขนาดยา 10%', pct: -10, action: 'ลด + หยุด 1 วัน' };
+    color = 'orange'; icon = '⬇️';
+  } else if (inr < 9) {
+    rec = { text: 'หยุดยา 1-2 วัน ตรวจ INR ซ้ำใน 24-48 ชม. + Vit K 1 mg PO', pct: -15, action: 'หยุด 1-2 วัน' };
+    color = 'red'; icon = '⚠️';
+  } else {
+    rec = { text: 'หยุดยาทันที Vit K 5-10 mg PO / ประเมิน bleeding ด่วน', pct: null, action: 'หยุดยา / ปรึกษาแพทย์' };
+    color = 'red'; icon = '🚨';
+  }
+
+  const colorMap = {
+    green: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300',
+    blue: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300',
+    amber: 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300',
+    orange: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-300',
+    red: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300',
+  };
+
+  const prevDose = Number($('#prevDose').value) || 0;
+  let newDoseSuggest = null;
+  if (rec.pct !== null && prevDose > 0) newDoseSuggest = Math.round(prevDose * (1 + rec.pct / 100));
+
+  container.innerHTML = `
+    <div class="border rounded-lg p-3 ${colorMap[color]}">
+      <div class="flex items-start gap-2">
+        <span class="text-lg">${icon}</span>
+        <div class="flex-1">
+          <div class="font-semibold">${rec.action}</div>
+          <div class="text-xs mt-0.5">${rec.text}</div>
+          ${newDoseSuggest !== null ? `
+            <button id="btnApplySuggest" class="mt-2 px-4 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 active:scale-95 transition shadow-sm">
+              ใช้ขนาด ${fmt(newDoseSuggest)} mg/สัปดาห์
+            </button>` : (rec.pct !== null ? `<p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ กรอกขนาดยาเดิมเพื่อคำนวณขนาดแนะนำ</p>` : '')}
+        </div>
+      </div>
+    </div>
+    <p class="text-[10px] text-slate-400 mt-1">* อ้างอิงแนวทางทั่วไป ต้องพิจารณาร่วมกับบริบทผู้ป่วยและดุลยพินิจทางการแพทย์</p>
+  `;
+  const applyBtn = $('#btnApplySuggest');
+  if (applyBtn) applyBtn.addEventListener('click', () => {
+    $('#newDose').value = newDoseSuggest;
+    updatePct();
+    clearResults();
+       $('#newDose').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('#newDose').focus();
+  });
+}
+
+/* ====================== Calculate ====================== */
+function calculate() {
+  const weekly = Number($('#newDose').value);
+  if (!weekly || weekly <= 0) {
+    alert('กรุณากรอกขนาดยาใหม่ (mg/สัปดาห์)');
+    return;
+  }
+  const pills = Array.from($$('.pill-check:checked')).map(c => Number(c.dataset.mg));
+  if (!pills.length) {
+    alert('กรุณาเลือกขนาดเม็ดยาอย่างน้อย 1 ขนาด');
+    return;
+  }
+  STATE.pills = pills;
+  STATE.allowHalf = $('#allowHalf').checked;
+  STATE.dayPattern = 'auto';
+  STATE.weekStart = Number($('#weekStart').value);
+
+  comboCache.clear();
+  const raw = generateSchedules(weekly, pills, STATE.allowHalf, STATE.dayPattern);
+  const sortBy = $('#sortBy').value;
+  // Filter: only keep schedules that match the target weekly dose exactly
+  const matched = raw.filter(s => Math.abs(s.totalMg - weekly) < 0.01);
+  STATE.schedules = rankSchedules(matched.length ? matched : raw, sortBy).slice(0, 30);
+
+  if (!STATE.schedules.length) {
+    $('#resultsSection').classList.remove('hidden');
+    $('#schedulesGrid').innerHTML = `
+      <div class="col-span-2 p-8 text-center bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+        <div class="text-3xl mb-2">🤔</div>
+        <p class="font-semibold">ไม่พบการจัดยาที่เหมาะสม</p>
+        <p class="text-xs text-slate-500 mt-1">ลองเลือกขนาดเม็ดยาเพิ่มเติม หรือเปิดใช้แบ่งครึ่งเม็ด</p>
+      </div>`;
+    $('#resultCount').textContent = '0';
+    return;
+  }
+
+  $('#resultCount').textContent = `${STATE.schedules.length} ตัวเลือก`;
+  STATE.selectedIndex = 0;
+  renderResults();
+  $('#resultsSection').classList.remove('hidden');
+  $('#dispenseSection').classList.remove('hidden');
+  updateDispense();
+   $('#dispenseSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderResults() {
+  const grid = $('#schedulesGrid');
+  grid.innerHTML = STATE.schedules.map((s, i) => renderSchedule(s, i)).join('');
+  grid.querySelectorAll('.schedule-card').forEach(card => {
+    card.addEventListener('click', () => {
+      STATE.selectedIndex = Number(card.dataset.index);
+      renderResults();
+      updateDispense();
+         });
+  });
+}
+
+/* ====================== Dispensing ====================== */
+function syncDatesFromDayCount() {
+  const sd = getDateISO('#startDate');
+  const dc = Number($('#dayCount').value);
+  if (sd && dc > 0) {
+    const start = new Date(sd + 'T00:00:00');
+    const end = new Date(start);
+    end.setDate(end.getDate() + dc);
+    setDateInput('#endDate', end.toISOString().slice(0, 10));
+    updateDispense();
+  }
+}
+
+function syncDayCountFromDates() {
+  const sd = getDateISO('#startDate');
+  const ed = getDateISO('#endDate');
+  if (sd && ed) {
+    const start = new Date(sd + 'T00:00:00');
+    const end = new Date(ed + 'T00:00:00');
+    const diff = Math.round((end - start) / (1000*60*60*24));
+    if (diff > 0) $('#dayCount').value = diff;
+  }
+}
+
+function handleDateInput(id) {
+  const el = $(id);
+  const iso = beToISO(el.value);
+  if (iso) el.dataset.iso = iso;
+}
+
+function getDispenseDays() {
+  const sd = getDateISO('#startDate');
+  const ed = getDateISO('#endDate');
+  if (!sd || !ed) return 0;
+  const start = new Date(sd + 'T00:00:00');
+  const end = new Date(ed + 'T00:00:00');
+  const diff = Math.round((end - start) / (1000*60*60*24));
+  return diff > 0 ? diff : 0;
+}
+
+function calcDispenseForSchedule(sched) {
+  const sd = getDateISO('#startDate');
+  const ed = getDateISO('#endDate');
+  if (!sd || !ed) return null;
+  const start = new Date(sd + 'T00:00:00');
+  const end = new Date(ed + 'T00:00:00');
+  if (end <= start) return null;
+  const days = Math.round((end - start) / (1000*60*60*24));
+
+  const pillTotals = {};
+  let totalMg = 0;
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const dow = d.getDay();
+    const combo = sched.days[dow];
+    if (!combo) continue;
+    totalMg += keyComboToMg(combo);
+    for (const mg in combo) {
+      if (!pillTotals[mg]) pillTotals[mg] = { whole: 0, half: 0 };
+      pillTotals[mg].whole += combo[mg].whole;
+      pillTotals[mg].half += combo[mg].half;
+    }
+  }
+  const dispense = {};
+  for (const mg in pillTotals) {
+    const { whole, half } = pillTotals[mg];
+    const totalWhole = whole + Math.ceil(half / 2);
+    if (totalWhole > 0) dispense[mg] = totalWhole;
+  }
+  return { dispense, totalMg, days };
+}
+
+function updateDispense() {
+  if (STATE.schedules.length) renderResults();
+}
+
+/* ====================== State persistence ====================== */
+
+/* ====================== Theme ====================== */
+function initTheme() {
+  const saved = localStorage.getItem('wfr-theme');
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.classList.add('dark');
+  }
+}
+
+/* ====================== Print summary ====================== */
+function buildPrintSummary() {
+  const p = STATE.patient;
+  const sIdx = STATE.selectedIndex;
+  const sched = STATE.schedules[sIdx];
+  let html = `
+    <div style="font-family:Sarabun,sans-serif; color:#000;">
+      <h1 style="font-size:20px; margin:0 0 8px;">Warfarin Schedule</h1>
+      <p style="margin:0 0 8px; font-size:12px;">
+        <b>INR เป้าหมาย:</b> ${p.target} &nbsp;
+        <b>INR ล่าสุด:</b> ${p.inr || '—'} &nbsp;
+        <b>วันที่:</b> ${isoToBE(new Date().toISOString().slice(0,10))}
+      </p>
+      <p style="margin:4px 0; font-size:13px;">
+        <b>ขนาดยาเดิม:</b> ${fmt(STATE.prevDose)} mg/wk &nbsp;→&nbsp;
+        <b>ขนาดยาใหม่:</b> ${fmt(STATE.newDose)} mg/wk
+      </p>
+  `;
+  if (sched) {
+    const days = STATE.weekStart === 1 ? [1,2,3,4,5,6,0] : [0,1,2,3,4,5,6];
+    html += `<table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:12px;">
+      <tr>${days.map(d=>`<th style="border:1px solid #333; padding:6px; background:#f0f0f0;">${DAY_NAMES_FULL[d]}</th>`).join('')}</tr>
+      <tr>${days.map(d=>{
+        const c = sched.days[d];
+        if (!c) return `<td style="border:1px solid #333; padding:6px; text-align:center; color:#666;">หยุดยา</td>`;
+        const mg = keyComboToMg(c);
+        const pillTxt = Object.keys(c).map(Number).sort((a,b)=>a-b).map(m=>{
+          const {whole, half} = c[m];
+          if (!whole && !half) return '';
+          let t = whole && half ? `${whole}½` : (half ? '½' : `${whole}`);
+          return `${t}×${m}mg`;
+        }).filter(Boolean).join(' + ');
+        return `<td style="border:1px solid #333; padding:6px; text-align:center;"><b>${fmt(mg)} mg</b><br><span style="font-size:10px;">${pillTxt}</span></td>`;
+      }).join('')}</tr>
+    </table>`;
+  }
+  html += `<p style="margin-top:12px; font-size:10px; color:#666;">พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')}</p></div>`;
+  $('#printSummary').innerHTML = html;
+}
+
+/* ====================== Events ====================== */
+function clearResults() {
+  STATE.schedules = [];
+  STATE.selectedIndex = -1;
+  $('#resultsSection').classList.add('hidden');
+  $('#dispenseSection').classList.add('hidden');
+  $('#schedulesGrid').innerHTML = '';
+}
+
+/* ====================== Pill Counter Modal ====================== */
+/* ====================== Pill Counter: Visual Matrix ====================== */
+function initPillCounter() {
+  const modal = $('#pillModal');
+  const container = $('#pillMatrixContainer');
+  const dayIds = [1,2,3,4,5,6,0];
+  const mgList = [1,2,3,5];
+  const PS = {
+    1:{bg:'#e5e7eb',c:'#374151',b:'#9ca3af'},
+    2:{bg:'#ff8c00',c:'#fff',b:'#e06800'},
+    3:{bg:'#87ceeb',c:'#075985',b:'#38bdf8'},
+    5:{bg:'#ff69b4',c:'#fff',b:'#db2777'}
+  };
+  // Data: pills[mg][day] = count in 0.5 steps (0, 0.5, 1, 1.5, 2, ...)
+  const data = {};
+  mgList.forEach(mg => { data[mg] = {}; dayIds.forEach(d => { data[mg][d] = 0; }); });
+
+  function pillHTML(mg, count, day) {
+    if (count <= 0) return '<span class="text-slate-300 text-xs">—</span>';
+    const s = PS[mg];
+    const style = `background:${s.bg};color:${s.c};border:2px solid ${s.b}`;
+    let html = '';
+    const whole = Math.floor(count);
+    const hasHalf = count % 1 >= 0.5;
+    for (let i = 0; i < whole; i++) {
+      html += `<span class="pill-tap inline-flex items-center justify-center rounded-full font-bold cursor-pointer hover:opacity-60 active:scale-90 transition" data-mg="${mg}" data-day="${day}" data-amt="0.5" style="${style};width:28px;height:28px;font-size:13px;" title="กดเพื่อเอาออก">${mg}</span>`;
+    }
+    if (hasHalf) {
+      html += `<span class="pill-tap inline-flex items-center justify-center rounded-full font-bold cursor-pointer hover:opacity-60 active:scale-90 transition" data-mg="${mg}" data-day="${day}" data-amt="0.5" style="${style};width:28px;height:28px;font-size:13px;clip-path:inset(0 50% 0 0);" title="กดเพื่อเอาออก">${mg}</span>`;
+    }
+    return html;
+  }
+
+  function render() {
+    let weekTotal = 0;
+    let html = '<table class="w-full text-center border-collapse" style="min-width:600px"><thead><tr>';
+    html += '<th class="p-1 text-left" style="min-width:120px"></th>';
+    dayIds.forEach(d => { html += `<th class="p-1" style="min-width:60px"><div class="day-header py-1.5 font-bold text-sm rounded" data-day="${d}">${DAY_NAMES_SUN[d]}</div></th>`; });
+    html += '<th class="p-1 text-sm text-slate-500" style="min-width:50px">mg</th></tr></thead><tbody>';
+
+    mgList.forEach(mg => {
+      const s = PS[mg];
+      let rowMg = 0;
+      dayIds.forEach(d => { rowMg += data[mg][d] * mg; });
+      weekTotal += rowMg;
+      const anyOn = dayIds.some(d => data[mg][d] > 0);
+
+      html += `<tr class="${anyOn ? '' : 'opacity-40'}">`;
+      html += `<td class="p-1 text-left"><div class="flex items-center gap-1.5">`;
+      html += `<input type="checkbox" class="q-chk w-5 h-5 accent-brand-600 flex-shrink-0" data-mg="${mg}" ${anyOn ? 'checked' : ''} />`;
+      html += `<span class="inline-flex items-center justify-center rounded-full font-bold flex-shrink-0" style="background:${s.bg};color:${s.c};border:2px solid ${s.b};width:32px;height:32px;font-size:14px;">${mg}</span>`;
+      html += `<button class="q-am w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-bold text-base active:scale-90" data-mg="${mg}">−</button>`;
+      html += `<button class="q-ap w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 font-bold text-base active:scale-90" data-mg="${mg}">+</button>`;
+      html += `</div></td>`;
+
+      dayIds.forEach(d => {
+        const v = data[mg][d];
+        html += `<td class="p-0.5">`;
+        html += `<div class="rounded-xl p-1.5 min-h-[52px] flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-900/50">`;
+        html += `<div class="flex flex-wrap justify-center gap-0.5">${pillHTML(mg, v, d)}</div>`;
+        html += `<div class="flex gap-1">`;
+        html += `<button class="q-day-minus w-7 h-7 rounded-full bg-red-100 dark:bg-red-900/40 text-red-600 font-bold text-sm leading-none active:scale-90" data-mg="${mg}" data-day="${d}">−</button>`;
+        html += `<button class="q-day-plus w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/40 text-green-600 font-bold text-sm leading-none active:scale-90" data-mg="${mg}" data-day="${d}">+</button>`;
+        html += `</div></div></td>`;
+      });
+      html += `<td class="p-1 font-bold text-base">${rowMg > 0 ? rowMg : '—'}</td></tr>`;
+    });
+
+    // Day totals row
+    html += '<tr class="border-t-2 border-slate-300 dark:border-slate-600"><td class="p-2 text-left font-bold text-sm">mg/วัน</td>';
+    dayIds.forEach(d => {
+      let dayMg = 0;
+      mgList.forEach(mg => { dayMg += data[mg][d] * mg; });
+      html += `<td class="p-2 font-bold text-base text-brand-700 dark:text-brand-400">${dayMg > 0 ? dayMg : '—'}</td>`;
+    });
+    html += `<td class="p-2 font-bold text-lg text-green-600 dark:text-green-400">${weekTotal}</td></tr>`;
+    html += '</tbody></table>';
+
+    container.innerHTML = html;
+    $('#pillTotalWeekly').textContent = weekTotal + ' mg';
+    bindMatrixEvents();
+  }
+
+  function bindMatrixEvents() {
+    // Tap pill to remove
+    container.querySelectorAll('.pill-tap').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const mg = Number(pill.dataset.mg), d = Number(pill.dataset.day);
+        const amt = Number(pill.dataset.amt);
+        data[mg][d] = Math.max(0, data[mg][d] - amt);
+        render();
+      });
+    });
+    // Per-day +/- buttons: ±0.5
+    container.querySelectorAll('.q-day-plus').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mg = Number(btn.dataset.mg), d = Number(btn.dataset.day);
+        data[mg][d] = Math.min(5, data[mg][d] + 0.5);
+        render();
+      });
+    });
+    container.querySelectorAll('.q-day-minus').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mg = Number(btn.dataset.mg), d = Number(btn.dataset.day);
+        data[mg][d] = Math.max(0, data[mg][d] - 0.5);
+        render();
+      });
+    });
+    // Checkbox: toggle all days 1 or 0
+    container.querySelectorAll('.q-chk').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const mg = Number(chk.dataset.mg);
+        const val = chk.checked ? 1 : 0;
+        dayIds.forEach(d => { data[mg][d] = val; });
+        render();
+      });
+    });
+    // +all row: +1.0 to all 7 days
+    container.querySelectorAll('.q-ap').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mg = Number(btn.dataset.mg);
+        dayIds.forEach(d => { data[mg][d] = Math.min(5, data[mg][d] + 1); });
+        render();
+      });
+    });
+    // -all row: -1.0 from all 7 days
+    container.querySelectorAll('.q-am').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mg = Number(btn.dataset.mg);
+        dayIds.forEach(d => { data[mg][d] = Math.max(0, data[mg][d] - 1); });
+        render();
+      });
+    });
+  }
+
+  // Open/Close
+  $('#btnOpenPillCounter').addEventListener('click', () => { modal.classList.remove('hidden'); render(); });
+  $('#btnClosePillModal').addEventListener('click', () => { modal.classList.add('hidden'); });
+  $('#pillModalBg').addEventListener('click', () => { modal.classList.add('hidden'); });
+
+  // Apply
+  $('#btnApplyPillCount').addEventListener('click', () => {
+    let weekTotal = 0;
+    // Save full pill matrix: data[mg][day] = count
+    const pillMatrix = {};
+    mgList.forEach(mg => {
+      pillMatrix[mg] = {};
+      dayIds.forEach(d => {
+        pillMatrix[mg][d] = data[mg][d];
+        weekTotal += data[mg][d] * mg;
+      });
+    });
+    const exact = Math.round(weekTotal * 10) / 10;
+    $('#prevDose').step = '0.5';
+    $('#prevDose').value = exact;
+
+    // Store pill matrix + day totals in STATE for smart ranking
+    STATE.currentPattern = {};
+    dayIds.forEach(d => {
+      let dayMg = 0;
+      mgList.forEach(mg => { dayMg += data[mg][d] * mg; });
+      STATE.currentPattern[d] = dayMg;
+    });
+    STATE.currentPillMatrix = pillMatrix;
+
+    // Auto-select "เปลี่ยนน้อยสุด" sort mode
+    $('#sortBy').value = 'leastChange';
+
+    $('#prevDose').dispatchEvent(new Event('input', {bubbles:true}));
+    clearResults();
+    modal.classList.add('hidden');
+  });
+}
+
+function bindEvents() {
+  $('#prevDose').addEventListener('input', () => { updatePct(); renderAdjustButtons(); suggestFromINR(); clearResults(); });
+  $('#newDose').addEventListener('input', () => { updatePct(); clearResults(); });
+  $('#btnCalculate').addEventListener('click', calculate);
+
+  $$('.pill-check').forEach(c => c.addEventListener('change', () => { clearResults(); }));
+  $('#allowHalf').addEventListener('change', () => { clearResults(); });
+  $('#weekStart').addEventListener('change', () => { if (STATE.schedules.length) renderResults(); });
+  $('#sortBy').addEventListener('change', () => { if (STATE.schedules.length) calculate(); });
+
+  $('#pTarget').addEventListener('change', suggestFromINR);
+  $('#pINR').addEventListener('input', () => { suggestFromINR(); });
+
+  // Text input: user types BE date manually
+  $('#startDate').addEventListener('blur', () => { handleDateInput('#startDate'); syncDayCountFromDates(); updateDispense(); });
+  $('#endDate').addEventListener('blur', () => { handleDateInput('#endDate'); syncDayCountFromDates(); updateDispense(); });
+  // Native date picker: user clicks calendar
+  $('#startDatePicker').addEventListener('change', () => {
+    const iso = $('#startDatePicker').value;
+    if (iso) { setDateInput('#startDate', iso); syncDayCountFromDates(); updateDispense(); }
+  });
+  $('#endDatePicker').addEventListener('change', () => {
+    const iso = $('#endDatePicker').value;
+    if (iso) { setDateInput('#endDate', iso); syncDayCountFromDates(); updateDispense(); }
+  });
+  $('#dayCount').addEventListener('input', syncDatesFromDayCount);
+  $('#dayCount').addEventListener('change', syncDatesFromDayCount);
+  $('#dayMinus').addEventListener('click', () => {
+    const el = $('#dayCount');
+    const v = Math.max(1, (Number(el.value) || 0) - 1);
+    el.value = v;
+    syncDatesFromDayCount();
+  });
+  $('#dayPlus').addEventListener('click', () => {
+    const el = $('#dayCount');
+    const v = Math.min(365, (Number(el.value) || 0) + 1);
+    el.value = v;
+    syncDatesFromDayCount();
+  });
+
+  $('#btnTheme').addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('wfr-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  });
+
+  $('#btnPrint').addEventListener('click', () => { buildPrintSummary(); window.print(); });
+
+  $('#btnReset').addEventListener('click', () => { location.reload(); });
+  $('#btnChangelog').addEventListener('click', () => { $('#changelogModal').classList.toggle('hidden'); });
+}
+
+/* ====================== Init ====================== */
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  // Default startDate to today (BE format)
+  const todayISO = new Date().toISOString().slice(0, 10);
+  setDateInput('#startDate', todayISO);
+  $('#startDatePicker').value = todayISO;
+  updatePct();
+  renderAdjustButtons();
+  suggestFromINR();
+  bindEvents();
+  initPillCounter();
+});
+</script>
+<!-- Changelog Modal -->
+<div id="changelogModal" class="fixed inset-0 z-50 hidden no-print">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="document.getElementById('changelogModal').classList.add('hidden')"></div>
+  <div class="relative max-w-lg mx-auto mt-16 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-bold text-lg">📝 Change Log</h3>
+      <button onclick="document.getElementById('changelogModal').classList.add('hidden')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-xl">✕</button>
+    </div>
+    <div class="text-sm space-y-3">
+      <div>
+        <div class="font-bold text-brand-600 dark:text-brand-400">V.1 Beta — 10/04/2569</div>
+        <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
+          <li>ตาราง Recommend Dosage Adjustment for Warfarin Maintenance Therapy</li>
+          <li>กรอก INR + เป้าหมาย → คำแนะนำปรับยาอัตโนมัติ</li>
+          <li>คำนวณขนาดยา: เดิม → ใหม่ พร้อม % เปลี่ยนแปลง</li>
+          <li>ปุ่มปรับขนาดยา ±1 mg พร้อมแสดง % จริง</li>
+          <li>นับเม็ดยาเดิม: matrix 7 วัน × 4 ขนาด พร้อมเม็ดยา visual</li>
+          <li>จัดตารางยารายสัปดาห์ (สูงสุด 30 ตัวเลือก)</li>
+          <li>Smart ranking: เปลี่ยนน้อยสุด / เรียบง่าย / เท่ากันทุกวัน / น้อยชนิด</li>
+          <li>วันพิเศษจัดไว้ท้ายสัปดาห์ (อา/ส) ลดความสับสน</li>
+          <li>แสดงเม็ดยาจริง (วงกลมสี + ครึ่งเม็ด) + สีประจำวันไทย</li>
+          <li>คำนวณจำนวนยาจ่ายตามวันนัด</li>
+          <li>รองรับวันที่ พ.ศ. + date picker</li>
+          <li>Dark mode / Light mode</li>
+          <li>พิมพ์ / บันทึก PDF</li>
+          <li>Responsive: desktop + mobile</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
