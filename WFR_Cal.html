@@ -287,16 +287,14 @@ tailwind.config = {
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันที่เริ่มกินยา</label>
         <div class="flex mt-1 gap-1">
           <input type="text" id="startDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
-          <input type="date" id="startDatePicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" />
-          <button type="button" onclick="try{document.getElementById('startDatePicker').showPicker()}catch(e){document.getElementById('startDatePicker').click()}" class="px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition" title="เลือกวันที่">📅</button>
+          <label class="relative px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="startDatePicker" class="absolute inset-0 opacity-0 cursor-pointer" tabindex="-1" /></label>
         </div>
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันนัดครั้งถัดไป</label>
         <div class="flex mt-1 gap-1">
           <input type="text" id="endDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
-          <input type="date" id="endDatePicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" />
-          <button type="button" onclick="try{document.getElementById('endDatePicker').showPicker()}catch(e){document.getElementById('endDatePicker').click()}" class="px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition" title="เลือกวันที่">📅</button>
+          <label class="relative px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="endDatePicker" class="absolute inset-0 opacity-0 cursor-pointer" tabindex="-1" /></label>
         </div>
       </div>
       <div>
