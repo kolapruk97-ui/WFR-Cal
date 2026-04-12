@@ -180,11 +180,11 @@ tailwind.config = {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ค่า INR วันนี้</label>
-        <input type="number" id="pINR" step="0.1" min="0" max="15" class="w-full mt-1 px-3 py-2 text-lg font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="เช่น 2.5" />
+        <input type="number" id="pINR" step="0.1" min="0" max="15" class="w-full mt-1 px-4 py-3 text-lg font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="เช่น 2.5" />
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">INR เป้าหมาย</label>
-        <select id="pTarget" class="w-full mt-1 px-3 py-2 text-lg font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none">
+        <select id="pTarget" class="w-full mt-1 px-4 py-3 text-lg font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" style="height:54px;">
           <option value="2-3">2.0 - 3.0</option>
           <option value="2.5-3.5">2.5 - 3.5</option>
         </select>
@@ -208,7 +208,7 @@ tailwind.config = {
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ขนาดยาใหม่ (mg/สัปดาห์)</label>
-        <input type="number" id="newDose" step="1" min="0" max="150" class="w-full mt-1 px-4 py-3 text-xl font-semibold rounded-lg bg-brand-50 dark:bg-slate-900 border-2 border-brand-300 dark:border-brand-700 focus:border-brand-500 focus:outline-none" placeholder="0" />
+        <input type="number" id="newDose" step="1" min="0" max="150" class="w-full mt-1 px-4 py-3 text-xl font-semibold rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="0" />
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">% เปลี่ยนแปลง</label>
@@ -1436,30 +1436,30 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     <div class="text-sm space-y-3">
       <div>
-        <div class="font-bold text-brand-600 dark:text-brand-400">V.2 — 10/04/2569</div>
+        <div class="font-bold text-emerald-600 dark:text-emerald-400">V.2</div>
         <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
-          <li>แก้ไข date picker ให้รองรับ mobile ทุกรุ่น</li>
-          <li>กรองตัวเลือกตารางยาที่ซ้ำกันออก เลือกแบบกระจายครบวันก่อน</li>
-          <li>เปลี่ยนค่าเริ่มต้นขนาดเม็ดยาเป็น 2 mg และ 3 mg</li>
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/04/12</span> แก้ไข date picker ให้รองรับ mobile ทุกรุ่น</li>
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/04/12</span> กรองตัวเลือกตารางยาที่ซ้ำกันออก เลือกแบบกระจายครบวันก่อน</li>
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/04/12</span> เปลี่ยนค่าเริ่มต้นขนาดเม็ดยาเป็น 2 mg และ 3 mg</li>
         </ul>
       </div>
       <div>
-        <div class="font-bold text-brand-600 dark:text-brand-400">V.1 Beta — 10/04/2569</div>
+        <div class="font-bold text-brand-600 dark:text-brand-400">V.1 Beta</div>
         <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
-          <li>ตาราง Recommend Dosage Adjustment for Warfarin Maintenance Therapy</li>
-          <li>กรอก INR + เป้าหมาย → คำแนะนำปรับยาอัตโนมัติ</li>
-          <li>คำนวณขนาดยา: เดิม → ใหม่ พร้อม % เปลี่ยนแปลง</li>
-          <li>ปุ่มปรับขนาดยา ±1 mg พร้อมแสดง % จริง</li>
-          <li>นับเม็ดยาเดิม: matrix 7 วัน × 4 ขนาด พร้อมเม็ดยา visual</li>
-          <li>จัดตารางยารายสัปดาห์ (สูงสุด 30 ตัวเลือก)</li>
-          <li>Smart ranking: เปลี่ยนน้อยสุด / เรียบง่าย / เท่ากันทุกวัน / น้อยชนิด</li>
-          <li>วันพิเศษจัดไว้ท้ายสัปดาห์ (อา/ส) ลดความสับสน</li>
-          <li>แสดงเม็ดยาจริง (วงกลมสี + ครึ่งเม็ด) + สีประจำวันไทย</li>
-          <li>คำนวณจำนวนยาจ่ายตามวันนัด</li>
-          <li>รองรับวันที่ พ.ศ. + date picker</li>
-          <li>Dark mode / Light mode</li>
-          <li>พิมพ์ / บันทึก PDF</li>
-          <li>Responsive: desktop + mobile</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> ตาราง Recommend Dosage Adjustment for Warfarin Maintenance Therapy</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> กรอก INR + เป้าหมาย → คำแนะนำปรับยาอัตโนมัติ</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> คำนวณขนาดยา: เดิม → ใหม่ พร้อม % เปลี่ยนแปลง</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> ปุ่มปรับขนาดยา ±1 mg พร้อมแสดง % จริง</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> นับเม็ดยาเดิม: matrix 7 วัน × 4 ขนาด พร้อมเม็ดยา visual</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> จัดตารางยารายสัปดาห์ (สูงสุด 30 ตัวเลือก)</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> Smart ranking: เปลี่ยนน้อยสุด / เรียบง่าย / เท่ากันทุกวัน / น้อยชนิด</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> วันพิเศษจัดไว้ท้ายสัปดาห์ (อา/ส) ลดความสับสน</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> แสดงเม็ดยาจริง (วงกลมสี + ครึ่งเม็ด) + สีประจำวันไทย</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> คำนวณจำนวนยาจ่ายตามวันนัด</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> รองรับวันที่ พ.ศ. + date picker</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> Dark mode / Light mode</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> พิมพ์ / บันทึก PDF</li>
+          <li><span class="text-brand-500 dark:text-brand-400 font-medium">2026/04/10</span> Responsive: desktop + mobile</li>
         </ul>
       </div>
     </div>
