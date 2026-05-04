@@ -69,6 +69,57 @@ tailwind.config = {
     main { max-width: 100% !important; }
   }
   .print-only { display: none; }
+
+  /* ====== Calendar print styles ====== */
+  /* Default page = current normal print; calendar mode swaps to chosen size/orientation */
+  @page cal-A4-portrait { size: A4 portrait; margin: 8mm; }
+  @page cal-A4-landscape { size: A4 landscape; margin: 8mm; }
+  @page cal-A5-portrait { size: A5 portrait; margin: 6mm; }
+  @page cal-A5-landscape { size: A5 landscape; margin: 6mm; }
+  body.print-cal-A4-portrait { page: cal-A4-portrait; }
+  body.print-cal-A4-landscape { page: cal-A4-landscape; }
+  body.print-cal-A5-portrait { page: cal-A5-portrait; }
+  body.print-cal-A5-landscape { page: cal-A5-landscape; }
+
+  @media print {
+    body.printing-calendar > *:not(#calendarPrint) { display: none !important; }
+    body.printing-calendar #calendarPrint { display: block !important; }
+    .cal-page { page-break-after: always; break-after: page; }
+    .cal-page:last-child { page-break-after: auto; break-after: auto; }
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    border: 1pt solid #000;
+    background: #000;
+  }
+  .cal-grid > div { background: #fff; min-height: 60px; padding: 4px; }
+  .cal-head {
+    text-align: center; font-weight: bold; padding: 4px 2px !important;
+    background: #f0f0f0 !important; min-height: 0 !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .cal-cell-other { background: #fafafa !important; color: #aaa; }
+  .cal-cell-stop { background: #f5f5f5 !important; }
+  .cal-date { font-size: 14pt; font-weight: bold; }
+  .cal-mg { font-size: 11pt; font-weight: 700; }
+  .cal-pills { font-size: 9pt; line-height: 1.3; }
+  .cal-pill-circle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: bold;
+    margin-right: 2px; border: 1.5px solid;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  /* B&W overrides */
+  .cal-bw .cal-day-stripe { background: #fff !important; color: #000 !important; border-bottom: 1pt solid #000; }
+  .cal-bw .cal-pill-circle { background: #fff !important; color: #000 !important; border-color: #000 !important; }
+  .cal-bw .cal-head { background: #fff !important; border-bottom: 1.5pt solid #000; }
+  .cal-bw .cal-cell-stop { background: #fff !important; }
+  .cal-bw .cal-cell-stop .cal-mg { text-decoration: line-through; }
+  .cal-bw .cal-grid > div { border: 0.5pt solid #000; }
+  .cal-bw .cal-grid { border: 1pt solid #000; background: #fff; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .fade-in { animation: fadeIn .25s ease; }
 </style>
@@ -89,6 +140,9 @@ tailwind.config = {
     <div class="flex items-center gap-2">
       <button id="btnChangelog" title="Change Log" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-500">
         📝
+      </button>
+      <button id="btnCalendar" title="ปฏิทินรายเดือน" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
       </button>
       <button id="btnPrint" title="พิมพ์/บันทึก PDF" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -379,6 +433,7 @@ const STATE = {
   weekStart: 1,
   schedules: [],
   selectedIndex: -1,
+  printSelected: new Set(),
   startDate: '',
   endDate: ''
 };
@@ -459,7 +514,7 @@ function comboHalves(combo) {
 
 /* ====================== Algorithm: find pill combinations ====================== */
 const comboCache = new Map();
-function findCombinations(targetMg, pillStrengths, allowHalf, maxPills = 4) {
+function findCombinations(targetMg, pillStrengths, allowHalf, maxPills = 6) {
   if (targetMg < 0) return [];
   if (targetMg === 0) return [{}];
   if (targetMg > 15) return [];
@@ -509,13 +564,14 @@ function findCombinations(targetMg, pillStrengths, allowHalf, maxPills = 4) {
     return true;
   });
 
-  // rank: fewer types > fewer pills > fewer halves
+  // rank: ครึ่งเม็ดน้อยสุด > ชนิดเม็ดน้อยสุด > เม็ดรวมน้อยสุด
+  // (ตามหลักความเป็นจริง: เลี่ยงการตัดครึ่งเม็ดเป็นสำคัญ — ลดความสับสน/ความผิดพลาดของผู้ป่วย)
   unique.sort((a,b) => {
+    const ha = comboHalves(a), hb = comboHalves(b);
+    if (ha !== hb) return ha - hb;
     const ta = comboTypeCount(a), tb = comboTypeCount(b);
     if (ta !== tb) return ta - tb;
-    const pa = comboPillCount(a), pb = comboPillCount(b);
-    if (pa !== pb) return pa - pb;
-    return comboHalves(a) - comboHalves(b);
+    return comboPillCount(a) - comboPillCount(b);
   });
 
   comboCache.set(key, unique);
@@ -553,6 +609,14 @@ function generateSchedules(weeklyTarget, pills, allowHalf, dayPattern) {
       totalHalves += comboHalves(c);
       for (const m in c) if (c[m].whole + c[m].half > 0) totalTypes.add(m);
     }
+
+    // จ-ศ เท่ากัน + ส,อา เท่ากัน (กลุ่มสัปดาห์/สุดสัปดาห์)
+    const monFriKey = keys[1];
+    const weekdaysSame = monFriKey !== 'X' && [2,3,4,5].every(d => keys[d] === monFriKey);
+    const weekendSame = keys[6] === keys[0];
+    const weekdayDiffersWeekend = monFriKey !== keys[6];
+    const weekendGrouped = weekdaysSame && weekendSame && weekdayDiffersWeekend;
+
     schedules.push({
       days: sched,
       stopDays,
@@ -560,7 +624,8 @@ function generateSchedules(weeklyTarget, pills, allowHalf, dayPattern) {
       totalPills,
       totalHalves,
       typeCount: totalTypes.size,
-      totalMg: Math.round(totalMg * 100) / 100
+      totalMg: Math.round(totalMg * 100) / 100,
+      weekendGrouped
     });
   }
 
@@ -729,13 +794,17 @@ function rankSchedules(schedules, mode) {
     } else if (mode === 'fewType') {
       if (a.typeCount !== b.typeCount) return a.typeCount - b.typeCount;
     } else if (mode === 'simple') {
-      // simple: เรียบง่ายที่สุด
+      // simple: เรียบง่ายที่สุด — ดู distinctDoses ก่อน, ถ้าเสมอให้ pattern จ-ศ + ส,อา ขึ้นก่อน
       if (a.distinctDoses !== b.distinctDoses) return a.distinctDoses - b.distinctDoses;
+      if (a.weekendGrouped !== b.weekendGrouped) return a.weekendGrouped ? -1 : 1;
       if (a.totalPills !== b.totalPills) return a.totalPills - b.totalPills;
+    } else if (mode === 'uniform') {
+      // (already handled above) — keep here for clarity
     }
 
-    // Default fallback
+    // Default fallback — pattern จ-ศ + ส,อา ได้ priority หลัง stopDays
     if (a.stopDays !== b.stopDays) return a.stopDays - b.stopDays;
+    if (a.weekendGrouped !== b.weekendGrouped) return a.weekendGrouped ? -1 : 1;
     if (a.maxPillsPerDay !== b.maxPillsPerDay) return a.maxPillsPerDay - b.maxPillsPerDay;
     if (a.totalHalves !== b.totalHalves) return a.totalHalves - b.totalHalves;
     if (a.totalPills !== b.totalPills) return a.totalPills - b.totalPills;
@@ -787,6 +856,8 @@ function renderSchedule(sched, index) {
   const uniformChip = sched.distinctDoses === 1
     ? `<span class="chip bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">✓ เท่ากันทุกวัน</span>`
     : `<span class="chip bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">${sched.distinctDoses} ระดับขนาด</span>`;
+  const groupChip = sched.weekendGrouped
+    ? `<span class="chip bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300">📅 จ–ศ + ส,อา</span>` : '';
   const halfChip = sched.totalHalves > 0
     ? `<span class="chip bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">½ × ${sched.totalHalves}</span>` : '';
   const changeChip = (STATE.currentPattern && sched.daysChanged !== undefined)
@@ -849,8 +920,12 @@ function renderSchedule(sched, index) {
     <div class="schedule-card bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 cursor-pointer ${STATE.selectedIndex === index ? 'selected' : ''}" data-index="${index}">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2 flex-wrap">
+          <label class="inline-flex items-center cursor-pointer no-print" onclick="event.stopPropagation()" title="ติ๊กเพื่อเลือกพิมพ์ปฏิทิน">
+            <input type="checkbox" class="print-check w-5 h-5 accent-brand-600 cursor-pointer" data-idx="${index}" ${STATE.printSelected.has(index) ? 'checked' : ''} />
+          </label>
           <span class="font-bold text-lg text-brand-700 dark:text-brand-400">ตัวเลือก #${index+1}</span>
           ${uniformChip}
+          ${groupChip}
           ${stopChip}
           ${halfChip}
           ${changeChip}
@@ -1032,6 +1107,7 @@ function calculate() {
 
   $('#resultCount').textContent = `${STATE.schedules.length} ตัวเลือก`;
   STATE.selectedIndex = 0;
+  STATE.printSelected.clear();
   renderResults();
   $('#resultsSection').classList.remove('hidden');
   $('#dispenseSection').classList.remove('hidden');
@@ -1048,6 +1124,14 @@ function renderResults() {
       renderResults();
       updateDispense();
          });
+  });
+  grid.querySelectorAll('.print-check').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const idx = Number(cb.dataset.idx);
+      if (cb.checked) STATE.printSelected.add(idx);
+      else STATE.printSelected.delete(idx);
+    });
   });
 }
 
@@ -1178,10 +1262,195 @@ function buildPrintSummary() {
   $('#printSummary').innerHTML = html;
 }
 
+/* ====================== Monthly Calendar ====================== */
+const MONTH_NAMES_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+function openCalendarModal() {
+  if (!STATE.schedules.length) {
+    alert('กรุณากดคำนวณตารางยาก่อน');
+    return;
+  }
+
+  // Build summary of selected
+  const sum = $('#calSelectedSummary');
+  const btn = $('#btnPrintCalendar');
+  const indices = [...STATE.printSelected].sort((a,b)=>a-b);
+  if (indices.length === 0) {
+    sum.innerHTML = '⚠️ ยังไม่ได้เลือก — กรุณาติ๊ก ☑ ที่หน้าตัวเลือกในรายการก่อน';
+    sum.className = 'px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-sm';
+    btn.disabled = true;
+    btn.classList.add('opacity-50','cursor-not-allowed');
+  } else {
+    const list = indices.map(i => {
+      const s = STATE.schedules[i];
+      const tag = s.weekendGrouped ? ' (จ-ศ+ส,อา)' : '';
+      const stop = s.stopDays > 0 ? ` หยุด ${s.stopDays}` : '';
+      return `<li>#${i+1} — ${fmt(s.totalMg)} mg/wk${tag}${stop}</li>`;
+    }).join('');
+    sum.innerHTML = `<div class="font-semibold mb-1">${indices.length} ตัวเลือก</div><ul class="list-disc list-inside text-xs">${list}</ul>${indices.length > 1 ? '<div class="text-xs text-slate-500 mt-1">จะพิมพ์ ' + indices.length + ' หน้า (1 ตัวเลือก/หน้า)</div>' : ''}`;
+    sum.className = 'px-3 py-2 rounded-lg border border-brand-300 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 text-sm';
+    btn.disabled = false;
+    btn.classList.remove('opacity-50','cursor-not-allowed');
+  }
+
+  const now = new Date();
+  $('#calMonth').value = now.getMonth();
+  $('#calYearBE').value = now.getFullYear() + 543;
+
+  $('#calendarModal').classList.remove('hidden');
+}
+
+function buildCalendarHTML(opts) {
+  const { scheduleIdx, monthIdx, yearBE, isBW } = opts;
+  const sched = STATE.schedules[scheduleIdx];
+  if (!sched) return '';
+  const yearAD = yearBE - 543;
+  const firstDay = new Date(yearAD, monthIdx, 1);
+  const daysInMonth = new Date(yearAD, monthIdx + 1, 0).getDate();
+
+  // Day order based on weekStart
+  const weekStart = STATE.weekStart;
+  const dayOrder = weekStart === 1 ? [1,2,3,4,5,6,0] : [0,1,2,3,4,5,6];
+  const headerCells = dayOrder.map(d => {
+    const bg = isBW ? '#fff' : DAY_BG_COLORS[d];
+    const fg = isBW ? '#000' : DAY_TEXT_COLORS[d];
+    return `<div class="cal-head" style="background:${bg};color:${fg};">${DAY_NAMES_FULL[d]}</div>`;
+  }).join('');
+
+  // Compute starting offset (empty cells before day 1)
+  const firstWeekday = firstDay.getDay(); // 0=Sun, 6=Sat
+  const startOffset = (firstWeekday - dayOrder[0] + 7) % 7;
+
+  let cells = '';
+  // Empty cells before day 1
+  for (let i = 0; i < startOffset; i++) cells += `<div class="cal-cell-other"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(yearAD, monthIdx, d);
+    const dow = dt.getDay();
+    const combo = sched.days[dow];
+    const isStop = combo === null;
+    const mg = isStop ? 0 : keyComboToMg(combo);
+
+    const stripeBg = isBW ? '#fff' : DAY_BG_COLORS[dow];
+    const stripeFg = isBW ? '#000' : DAY_TEXT_COLORS[dow];
+
+    let pillsHTML;
+    if (isStop) {
+      pillsHTML = `<div class="cal-pills" style="color:#666;">— หยุดยา —</div>`;
+    } else if (isBW) {
+      // Text-only breakdown for B&W
+      const txt = Object.keys(combo).map(Number).sort((a,b)=>a-b).map(m => {
+        const {whole, half} = combo[m];
+        if (!whole && !half) return '';
+        const cnt = whole + (half ? '½' : '');
+        return `${cnt}×${m}mg`;
+      }).filter(Boolean).join(' + ');
+      pillsHTML = `<div class="cal-pills">${txt}</div>`;
+    } else {
+      // Visual circles for color mode
+      const circles = Object.keys(combo).map(Number).sort((a,b)=>a-b).flatMap(m => {
+        const {whole, half} = combo[m];
+        const arr = [];
+        const bg = PILL_COLORS[m], fg = PILL_TEXT_COLORS[m], bd = PILL_BORDER_COLORS[m];
+        for (let i = 0; i < whole; i++) {
+          arr.push(`<span class="cal-pill-circle" style="background:${bg};color:${fg};border-color:${bd};">${m}</span>`);
+        }
+        if (half) {
+          arr.push(`<span class="cal-pill-circle" style="background:linear-gradient(90deg,${bg} 50%,#fff 50%);color:${fg};border-color:${bd};">${m}</span>`);
+        }
+        return arr;
+      }).join('');
+      pillsHTML = `<div class="cal-pills" style="margin-top:2px;">${circles}</div>`;
+    }
+
+    const cellClass = isStop ? 'cal-cell-stop' : '';
+    cells += `
+      <div class="${cellClass}" style="display:flex;flex-direction:column;">
+        <div class="cal-day-stripe" style="background:${stripeBg};color:${stripeFg};padding:2px 4px;border-radius:3px;display:flex;justify-content:space-between;align-items:center;font-size:10pt;">
+          <span style="font-weight:bold;">${DAY_NAMES_SUN[dow]}</span>
+          <span class="cal-date">${d}</span>
+        </div>
+        <div style="margin-top:4px;flex:1;">
+          <div class="cal-mg" style="${isStop ? 'color:#888;' : ''}">${isStop ? '—' : fmt(mg) + ' mg'}</div>
+          ${pillsHTML}
+        </div>
+      </div>`;
+  }
+
+  // Used pills legend
+  const usedPills = new Set();
+  for (const c of sched.days) if (c) for (const m in c) if (c[m].whole || c[m].half) usedPills.add(Number(m));
+  const legendHTML = [...usedPills].sort((a,b)=>a-b).map(m => {
+    if (isBW) return `<span style="margin-right:10px;font-size:10pt;">${m} mg</span>`;
+    const bg = PILL_COLORS[m], fg = PILL_TEXT_COLORS[m], bd = PILL_BORDER_COLORS[m];
+    return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:10pt;">
+      <span class="cal-pill-circle" style="background:${bg};color:${fg};border-color:${bd};">${m}</span>${m} mg
+    </span>`;
+  }).join('');
+
+  return `
+    <div class="${isBW ? 'cal-bw' : ''}" style="font-family:Sarabun,sans-serif;color:#000;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;${isBW ? 'border-bottom:1.5pt solid #000;' : 'border-bottom:2pt solid #333;'}padding-bottom:4px;">
+        <div>
+          <div style="font-size:14pt;font-weight:bold;">ตารางการกินยา Warfarin <span style="font-size:11pt;font-weight:normal;color:#666;">(ตัวเลือก #${scheduleIdx+1})</span></div>
+          <div style="font-size:11pt;">เดือน ${MONTH_NAMES_TH[monthIdx]} พ.ศ. ${yearBE}</div>
+        </div>
+        <div style="text-align:right;font-size:10pt;">
+          <div><b>ขนาดรวม:</b> ${fmt(sched.totalMg)} mg/สัปดาห์</div>
+          ${STATE.patient.target ? `<div><b>INR เป้าหมาย:</b> ${STATE.patient.target}</div>` : ''}
+        </div>
+      </div>
+      <div style="margin:4px 0;font-size:10pt;">${legendHTML}</div>
+      <div class="cal-grid">${headerCells}${cells}</div>
+      <div style="margin-top:6px;font-size:9pt;color:#444;text-align:right;">
+        พิมพ์เมื่อ ${isoToBE(new Date().toISOString().slice(0,10))}
+      </div>
+    </div>
+  `;
+}
+
+function printCalendar() {
+  const indices = [...STATE.printSelected].sort((a,b)=>a-b);
+  if (indices.length === 0) {
+    alert('กรุณาเลือกตัวเลือกอย่างน้อย 1 ตัว (ติ๊ก ☑ ในรายการ)');
+    return;
+  }
+
+  const monthIdx = Number($('#calMonth').value);
+  const yearBE = Number($('#calYearBE').value);
+  const paper = document.querySelector('input[name="calPaper"]:checked').value;
+  const orient = document.querySelector('input[name="calOrient"]:checked').value;
+  const isBW = document.querySelector('input[name="calColor"]:checked').value === 'bw';
+
+  const html = indices.map(scheduleIdx =>
+    `<div class="cal-page">${buildCalendarHTML({ scheduleIdx, monthIdx, yearBE, isBW })}</div>`
+  ).join('');
+  $('#calendarPrint').innerHTML = html;
+
+  // Apply page class
+  ['print-cal-A4-portrait','print-cal-A4-landscape','print-cal-A5-portrait','print-cal-A5-landscape']
+    .forEach(c => document.body.classList.remove(c));
+  document.body.classList.add(`print-cal-${paper}-${orient}`);
+  document.body.classList.add('printing-calendar');
+  $('#calendarModal').classList.add('hidden');
+
+  // Trigger print, then cleanup
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('printing-calendar');
+      ['print-cal-A4-portrait','print-cal-A4-landscape','print-cal-A5-portrait','print-cal-A5-landscape']
+        .forEach(c => document.body.classList.remove(c));
+    }, 100);
+  }, 50);
+}
+
 /* ====================== Events ====================== */
 function clearResults() {
   STATE.schedules = [];
   STATE.selectedIndex = -1;
+  STATE.printSelected.clear();
   $('#resultsSection').classList.add('hidden');
   $('#dispenseSection').classList.add('hidden');
   $('#schedulesGrid').innerHTML = '';
@@ -1407,6 +1676,8 @@ function bindEvents() {
   });
 
   $('#btnPrint').addEventListener('click', () => { buildPrintSummary(); window.print(); });
+  $('#btnCalendar').addEventListener('click', openCalendarModal);
+  $('#btnPrintCalendar').addEventListener('click', printCalendar);
 
   $('#btnReset').addEventListener('click', () => { location.reload(); });
   $('#btnChangelog').addEventListener('click', () => { $('#changelogModal').classList.toggle('hidden'); });
@@ -1426,6 +1697,75 @@ document.addEventListener('DOMContentLoaded', () => {
   initPillCounter();
 });
 </script>
+<!-- Calendar Modal -->
+<div id="calendarModal" class="fixed inset-0 z-50 hidden no-print">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="document.getElementById('calendarModal').classList.add('hidden')"></div>
+  <div class="relative max-w-md mx-auto mt-10 mb-6 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-lg">🗓️ ปฏิทินรายเดือน</h3>
+      <button onclick="document.getElementById('calendarModal').classList.add('hidden')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-xl">✕</button>
+    </div>
+
+    <div class="space-y-4 text-sm">
+      <!-- Selected schedules summary -->
+      <div>
+        <label class="block font-semibold mb-1">ตัวเลือกที่เลือกพิมพ์</label>
+        <div id="calSelectedSummary" class="px-3 py-2 rounded-lg border text-sm"></div>
+      </div>
+
+      <!-- Month / Year -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold mb-1">เดือน</label>
+          <select id="calMonth" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+            <option value="0">มกราคม</option><option value="1">กุมภาพันธ์</option><option value="2">มีนาคม</option>
+            <option value="3">เมษายน</option><option value="4">พฤษภาคม</option><option value="5">มิถุนายน</option>
+            <option value="6">กรกฎาคม</option><option value="7">สิงหาคม</option><option value="8">กันยายน</option>
+            <option value="9">ตุลาคม</option><option value="10">พฤศจิกายน</option><option value="11">ธันวาคม</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">ปี (พ.ศ.)</label>
+          <input type="number" id="calYearBE" min="2400" max="2700" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700" />
+        </div>
+      </div>
+
+      <!-- Paper size -->
+      <div>
+        <label class="block font-semibold mb-1">ขนาดกระดาษ</label>
+        <div class="flex gap-2">
+          <label class="flex-1 cursor-pointer"><input type="radio" name="calPaper" value="A4" class="peer sr-only" checked /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">A4</span></label>
+          <label class="flex-1 cursor-pointer"><input type="radio" name="calPaper" value="A5" class="peer sr-only" /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">A5</span></label>
+        </div>
+      </div>
+
+      <!-- Orientation -->
+      <div>
+        <label class="block font-semibold mb-1">แนวกระดาษ</label>
+        <div class="flex gap-2">
+          <label class="flex-1 cursor-pointer"><input type="radio" name="calOrient" value="landscape" class="peer sr-only" checked /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">⬛ แนวนอน</span></label>
+          <label class="flex-1 cursor-pointer"><input type="radio" name="calOrient" value="portrait" class="peer sr-only" /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">▮ แนวตั้ง</span></label>
+        </div>
+      </div>
+
+      <!-- Color mode -->
+      <div>
+        <label class="block font-semibold mb-1">โหมดพิมพ์</label>
+        <div class="flex gap-2">
+          <label class="flex-1 cursor-pointer"><input type="radio" name="calColor" value="bw" class="peer sr-only" checked /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">⬜ ขาว-ดำ</span></label>
+          <label class="flex-1 cursor-pointer"><input type="radio" name="calColor" value="color" class="peer sr-only" /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">🎨 สี</span></label>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">ขาว-ดำ: ตัดสีพื้น/วงกลมเม็ดยา ใช้ตัวอักษรล้วน — ประหยัดหมึก</p>
+      </div>
+
+      <button id="btnPrintCalendar" class="w-full py-3 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold">🖨️ พิมพ์ปฏิทิน</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar Print Output (filled before print) -->
+<div id="calendarPrint" class="hidden print:block"></div>
+
 <!-- Changelog Modal -->
 <div id="changelogModal" class="fixed inset-0 z-50 hidden no-print">
   <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="document.getElementById('changelogModal').classList.add('hidden')"></div>
@@ -1438,6 +1778,11 @@ document.addEventListener('DOMContentLoaded', () => {
       <div>
         <div class="font-bold text-emerald-600 dark:text-emerald-400">V.2</div>
         <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/05/03</span> เพิ่ม checkbox หน้าตัวเลือกตารางยา — ติ๊กเลือกหลายตัวเพื่อพิมพ์ปฏิทินทีเดียว (1 ตัวเลือก/หน้า)</li>
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/05/03</span> ปฏิทินรายเดือน 🗓️ — เลือกตัวเลือก/เดือน/A4-A5/แนวตั้ง-นอน/สี-ขาวดำ พร้อมพิมพ์ติดกล่องยา</li>
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/05/03</span> เพิ่ม pattern "จ–ศ + ส,อา" (กลุ่มสัปดาห์/สุดสัปดาห์) ใน Smart Ranking พร้อม chip 📅</li>
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/05/03</span> เลี่ยงการแบ่งครึ่งเม็ดยาเสมอเมื่อมีทางเลือก (เปลี่ยนลำดับเลือกชุดเม็ดยา)</li>
+          <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/05/03</span> แก้ bug ขนาดยาสูง 90–105 mg/สัปดาห์ ที่เคยไม่มีตัวเลือก (ขยาย max pills/วัน 4 → 6)</li>
           <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/04/12</span> แก้ไข date picker ให้รองรับ mobile ทุกรุ่น</li>
           <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/04/12</span> กรองตัวเลือกตารางยาที่ซ้ำกันออก เลือกแบบกระจายครบวันก่อน</li>
           <li><span class="text-emerald-500 dark:text-emerald-400 font-medium">2026/04/12</span> เปลี่ยนค่าเริ่มต้นขนาดเม็ดยาเป็น 2 mg และ 3 mg</li>
