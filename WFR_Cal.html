@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Warfarin Planner PRO V.2</title>
-<meta name="description" content="Warfarin Planner PRO V.2 — เครื่องมือคำนวณขนาดยาวาร์ฟาริน พร้อมคำแนะนำปรับขนาดตาม INR" />
+<title>Warfarin Planner PRO V.3</title>
+<meta name="description" content="Warfarin Planner PRO V.3 — เครื่องมือคำนวณขนาดยาวาร์ฟาริน พร้อมคำแนะนำปรับขนาดตาม INR" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -52,6 +52,9 @@ tailwind.config = {
   .dark .day-header[data-day="4"] { background:#7c2d12; color:#fdba74; }
   .dark .day-header[data-day="5"] { background:#1e3a5f; color:#93c5fd; }
   .dark .day-header[data-day="6"] { background:#4c1d95; color:#c4b5fd; }
+  /* ครึ่งเม็ดในตารางการจัดยา — ส่วนโค้งซ้ายกลมเต็มวง (รัศมี 14px = ครึ่งหนึ่งของความสูง 28px) ตัดตรงด้านขวา */
+  /* ครึ่งเม็ด = ครึ่งวงกลมจริง — กว้าง 14px = ครึ่งหนึ่งของเม็ดเต็ม 28px, โค้งซ้ายรัศมี 14px, ตัดตรงด้านขวา */
+  .pill-half { width: 14px; border-radius: 14px 0 0 14px; flex: none; }
   .day-cell { transition: all .15s ease; }
   .day-cell:hover { transform: translateY(-2px); }
   .schedule-card { transition: all .2s ease; }
@@ -106,20 +109,34 @@ tailwind.config = {
   .cal-date { font-size: 14pt; font-weight: bold; }
   .cal-mg { font-size: 11pt; font-weight: 700; }
   .cal-pills { font-size: 9pt; line-height: 1.3; }
+  .cal-pill-text { font-size: 8pt; line-height: 1.2; margin-top: 2px; color: #333; }
   .cal-pill-circle {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: bold;
-    margin-right: 2px; border: 1.5px solid;
+    width: 20px; height: 20px; border-radius: 50%; font-size: 9px; font-weight: bold;
+    margin-right: 2px; border: 1.5px solid; flex: none;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   /* B&W overrides */
   .cal-bw .cal-day-stripe { background: #fff !important; color: #000 !important; border-bottom: 1pt solid #000; }
   .cal-bw .cal-pill-circle { background: #fff !important; color: #000 !important; border-color: #000 !important; }
+  /* ครึ่งเม็ด = ครึ่งวงกลมจริง — กว้าง 10px = ครึ่งหนึ่งของเม็ดเต็ม 20px, โค้งซ้ายรัศมี 10px, ตัดตรงด้านขวา */
+  .cal-pill-circle.cal-pill-half {
+    width: 10px;
+    border-radius: 10px 0 0 10px;
+    border-right-width: 2px;
+  }
   .cal-bw .cal-head { background: #fff !important; border-bottom: 1.5pt solid #000; }
   .cal-bw .cal-cell-stop { background: #fff !important; }
   .cal-bw .cal-cell-stop .cal-mg { text-decoration: line-through; }
   .cal-bw .cal-grid > div { border: 0.5pt solid #000; }
   .cal-bw .cal-grid { border: 1pt solid #000; background: #fff; }
+  /* ปุ่ม 📅 เลือกวันที่ — เดิมต้องกดชิดขอบขวา เพราะไอคอนเปิดปฏิทินของเบราว์เซอร์อยู่มุมขวาของ input
+     แก้โดยขยายไอคอนนั้นให้เต็มปุ่ม กดตรงไหนก็เปิดปฏิทิน */
+  .date-picker-btn { overflow: hidden; }
+  .date-picker-btn input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    margin: 0; padding: 0; opacity: 0; cursor: pointer;
+  }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .fade-in { animation: fadeIn .25s ease; }
 </style>
@@ -134,7 +151,7 @@ tailwind.config = {
         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
       </div>
       <div>
-        <h1 class="text-lg md:text-xl font-bold leading-tight">Warfarin Planner <span class="text-xs font-semibold text-brand-600 dark:text-brand-500 align-top">PRO</span> <span class="text-xs font-normal text-slate-400">V.2</span></h1>
+        <h1 class="text-lg md:text-xl font-bold leading-tight">Warfarin Planner <span class="text-xs font-semibold text-brand-600 dark:text-brand-500 align-top">PRO</span> <span class="text-xs font-normal text-slate-400">V.3</span></h1>
       </div>
     </div>
     <div class="flex items-center gap-2">
@@ -341,14 +358,14 @@ tailwind.config = {
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันที่เริ่มกินยา</label>
         <div class="flex mt-1 gap-1">
           <input type="text" id="startDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
-          <label class="relative inline-flex items-center justify-center px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="startDatePicker" class="absolute inset-0 w-full h-full cursor-pointer" style="opacity:0.01;font-size:16px;-webkit-appearance:none;min-height:44px;" tabindex="-1" /></label>
+          <label class="date-picker-btn relative inline-flex items-center justify-center px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="startDatePicker" class="absolute inset-0 w-full h-full cursor-pointer" style="opacity:0.01;font-size:16px;-webkit-appearance:none;min-height:44px;" tabindex="-1" /></label>
         </div>
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">วันนัดครั้งถัดไป</label>
         <div class="flex mt-1 gap-1">
           <input type="text" id="endDate" class="flex-1 px-4 py-3 text-base rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="DD/MM/พ.ศ." data-iso="" />
-          <label class="relative inline-flex items-center justify-center px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="endDatePicker" class="absolute inset-0 w-full h-full cursor-pointer" style="opacity:0.01;font-size:16px;-webkit-appearance:none;min-height:44px;" tabindex="-1" /></label>
+          <label class="date-picker-btn relative inline-flex items-center justify-center px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition cursor-pointer" title="เลือกวันที่">📅<input type="date" id="endDatePicker" class="absolute inset-0 w-full h-full cursor-pointer" style="opacity:0.01;font-size:16px;-webkit-appearance:none;min-height:44px;" tabindex="-1" /></label>
         </div>
       </div>
       <div>
@@ -372,13 +389,14 @@ tailwind.config = {
       <div class="flex items-center gap-2 text-xs no-print">
         <span class="text-slate-500">เรียงตาม:</span>
         <select id="sortBy" class="px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <option value="simple" selected>ความเรียบง่าย</option>
           <option value="leastChange">เปลี่ยนน้อยสุด</option>
-          <option value="simple">ความเรียบง่าย</option>
           <option value="uniform">กินเท่ากันทุกวัน</option>
           <option value="fewType">เม็ดยาน้อยชนิด</option>
         </select>
       </div>
     </div>
+    <div id="approxWarn" class="hidden mb-3 px-4 py-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-sm"></div>
     <div id="schedulesGrid" class="grid grid-cols-1 gap-5"></div>
   </section>
 
@@ -413,7 +431,7 @@ tailwind.config = {
 
   <footer class="text-center text-xs text-slate-400 dark:text-slate-500 py-6 no-print">
     <p>⚠️ เครื่องมือนี้ใช้เพื่อช่วยคำนวณเท่านั้น การตัดสินใจให้ยาต้องอยู่ภายใต้ดุลยพินิจของบุคลากรทางการแพทย์</p>
-    <p class="mt-2">Warfarin Planner PRO V.2</p>
+    <p class="mt-2">Warfarin Planner PRO V.3 โดย นพ.ธนกฤต โอลาพฤกษ์</p>
     <p class="mt-1">Inspired by <a href="https://warfarin-net.github.io/warfarin-planner/" target="_blank" rel="noopener" class="text-brand-500 hover:underline">Warfarin คิดแป๊ปเดียว!</a> โดย ภก.นราวิชญ์ คำยวง</p>
     <p class="mt-1">ข้อมูลทั้งหมดบันทึกในเครื่องของคุณเท่านั้น · ไม่มีการส่งข้อมูลออก</p>
   </footer>
@@ -434,6 +452,9 @@ const STATE = {
   schedules: [],
   selectedIndex: -1,
   printSelected: new Set(),
+  applyingCounter: false,
+  targetWeekly: 0,
+  approx: false,
   startDate: '',
   endDate: ''
 };
@@ -442,6 +463,11 @@ const STATE = {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 // Buddhist Era date helpers
+// V.3: ใช้เวลาท้องถิ่นเสมอ — toISOString() เป็น UTC ทำให้วันที่เพี้ยนไป 1 วันในไทย (UTC+7)
+function toLocalISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function todayISO() { return toLocalISO(new Date()); }
 function isoToBE(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
@@ -454,13 +480,20 @@ function beToISO(be) {
   const [d, m, by] = parts;
   const y = Number(by) - 543;
   const dd = Number(d), mm = Number(m);
-  if (!y || y < 1900 || y > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
-  return `${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  if (!Number.isInteger(y) || !Number.isInteger(mm) || !Number.isInteger(dd)) return '';
+  if (y < 1900 || y > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+  // V.3: ตรวจวันที่จริง — กัน 31/02, 31/04 ฯลฯ ที่เดิมผ่านได้
+  const dt = new Date(y, mm - 1, dd);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return '';
+  return toLocalISO(dt);
 }
 function setDateInput(id, iso) {
   const el = $(id);
   el.dataset.iso = iso;
   el.value = isoToBE(iso);
+  // V.3: ซิงค์ค่าไปที่ปุ่มปฏิทิน (native date picker) ด้วย จะได้เปิดตรงเดือนที่ใช้อยู่
+  const picker = $(id + 'Picker');
+  if (picker) picker.value = iso;
 }
 function getDateISO(id) {
   return $(id).dataset.iso || beToISO($(id).value) || '';
@@ -634,34 +667,12 @@ function generateSchedules(weeklyTarget, pills, allowHalf, dayPattern) {
     // returns array of 7 combos
     const sched = new Array(7).fill(null).map(()=>normalCombo);
 
-    const isFriSun = false;
-    const isMonWedFri = false;
+    // Day indices (internal Sun=0 ... Sat=6) — วันพิเศษ/วันหยุดยาไว้ท้ายสัปดาห์ก่อน (คนไข้จำง่าย)
+    const autoOrderSpecial = [0, 6, 5, 4, 3, 2, 1]; // อา, ส, ศ, ...
+    const autoOrderStop = [0, 6, 5];                // อา, ส, ศ
 
-    // Day indices (using internal Sun=0 ... Sat=6)
-    // fri-sun: special days from end (Sun=0, Sat=6, Fri=5) -- actually we want Fri/Sat/Sun
-    const friSunOrder = [0, 6, 5]; // Sun, Sat, Fri
-    const monWedFriOrder = [1, 3, 5]; // Mon, Wed, Fri
-    const autoOrderSpecial = [0, 6, 5, 4, 3, 2, 1]; // Sun, Sat, Fri... (ท้ายสัปดาห์ก่อน — คนไข้จำง่าย)
-    const autoOrderStop = [0, 6, 5]; // Sun, Sat, Fri
-
-    let stopSlots, specialSlots;
-    if (isFriSun) {
-      // stop first from Sun, then special from remaining of Fri/Sat/Sun
-      stopSlots = friSunOrder.slice(0, stopCount);
-      specialSlots = friSunOrder.filter(d => !stopSlots.includes(d)).slice(0, specialCount);
-      // If not enough, add more
-      if (specialSlots.length < specialCount) {
-        const extras = [5,4,3,2,1].filter(d=>!stopSlots.includes(d)&&!specialSlots.includes(d));
-        while (specialSlots.length < specialCount && extras.length) specialSlots.push(extras.shift());
-      }
-    } else if (isMonWedFri) {
-      specialSlots = monWedFriOrder.slice(0, specialCount);
-      stopSlots = [6, 0, 2].filter(d=>!specialSlots.includes(d)).slice(0, stopCount);
-    } else {
-      // auto
-      stopSlots = autoOrderStop.slice(0, stopCount);
-      specialSlots = autoOrderSpecial.filter(d=>!stopSlots.includes(d)).slice(0, specialCount);
-    }
+    const stopSlots = autoOrderStop.slice(0, stopCount);
+    const specialSlots = autoOrderSpecial.filter(d => !stopSlots.includes(d)).slice(0, specialCount);
 
     for (const d of stopSlots) sched[d] = null;
     for (const d of specialSlots) sched[d] = specialCombo;
@@ -798,8 +809,6 @@ function rankSchedules(schedules, mode) {
       if (a.distinctDoses !== b.distinctDoses) return a.distinctDoses - b.distinctDoses;
       if (a.weekendGrouped !== b.weekendGrouped) return a.weekendGrouped ? -1 : 1;
       if (a.totalPills !== b.totalPills) return a.totalPills - b.totalPills;
-    } else if (mode === 'uniform') {
-      // (already handled above) — keep here for clarity
     }
 
     // Default fallback — pattern จ-ศ + ส,อา ได้ priority หลัง stopDays
@@ -815,6 +824,9 @@ function rankSchedules(schedules, mode) {
 }
 
 /* ====================== Rendering ====================== */
+/* รูปเม็ดยาต้องเหมือนกันทั้ง 3 ที่: pillHTML (นับเม็ดยา) / renderPillBadge (ตารางการจัดยา) / renderCalPills (ปฏิทิน)
+   เม็ดเต็ม = วงกลม, ครึ่งเม็ด = ครึ่งวงกลมโค้งกลม (radius เป็น px = ครึ่งหนึ่งของความสูง) ตัดตรงด้านขวา ห้ามตัดตัวเลข mg
+   แก้ที่ใดที่หนึ่ง ต้องแก้อีก 2 ที่ให้ตรงกันเสมอ */
 function renderPillBadge(mg, whole, half) {
   if (!whole && !half) return '';
   const color = PILL_COLORS[mg];
@@ -826,9 +838,9 @@ function renderPillBadge(mg, whole, half) {
   for (let i = 0; i < whole; i++) {
     html += `<span class="inline-flex items-center justify-center rounded-full font-bold" style="${pillStyle}">${mg}</span>`;
   }
-  // Half pill: semi-circle
+  // Half pill: ครึ่งวงกลม — ส่วนโค้งซ้ายกลมเต็มวง ตัดตรงด้านขวา (เดิมใช้ clip-path ซึ่งตัดตัวเลข mg ขาดครึ่ง)
   if (half) {
-    html += `<span class="inline-flex items-center justify-center rounded-full font-bold" style="${pillStyle}clip-path:inset(0 50% 0 0);">${mg}</span>`;
+    html += `<span class="pill-half inline-flex items-center justify-center font-bold" style="background:${color};color:${textColor};border:2px solid ${borderColor};height:28px;font-size:12px;">${mg}</span>`;
   }
   html += '</span>';
   return html;
@@ -860,6 +872,10 @@ function renderSchedule(sched, index) {
     ? `<span class="chip bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300">📅 จ–ศ + ส,อา</span>` : '';
   const halfChip = sched.totalHalves > 0
     ? `<span class="chip bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">½ × ${sched.totalHalves}</span>` : '';
+  // V.3: เตือนเมื่อตารางนี้ให้ขนาดรวมไม่ตรงกับที่สั่ง (เดิมแสดงปนกันโดยไม่บอก)
+  const diffTarget = Math.round((sched.totalMg - (STATE.targetWeekly || 0)) * 100) / 100;
+  const offTargetChip = (STATE.targetWeekly && Math.abs(diffTarget) >= 0.01)
+    ? `<span class="chip bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">⚠️ ต่างจากเป้าหมาย ${diffTarget > 0 ? '+' : '−'}${fmt(Math.abs(diffTarget))} mg</span>` : '';
   const changeChip = (STATE.currentPattern && sched.daysChanged !== undefined)
     ? (sched.daysChanged === 0
       ? `<span class="chip bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">✓ เหมือนเดิม</span>`
@@ -929,6 +945,7 @@ function renderSchedule(sched, index) {
           ${stopChip}
           ${halfChip}
           ${changeChip}
+          ${offTargetChip}
         </div>
         <div class="text-right">
           <div class="text-sm text-slate-500">รวม</div>
@@ -988,6 +1005,9 @@ function suggestFromINR() {
   const inr = Number($('#pINR').value);
   const target = $('#pTarget').value;
   const container = $('#inrSuggestion');
+  // V.3: เก็บค่าที่กรอกไว้ใน STATE ด้วย — เดิมใบพิมพ์แสดง INR เป้าหมายค้างที่ 2-3 และ INR ล่าสุดเป็น "—" เสมอ
+  STATE.patient.inr = $('#pINR').value;
+  STATE.patient.target = target;
   if (!inr) { container.innerHTML = '<p class="text-xs text-slate-500">กรอก INR เพื่อดูคำแนะนำ</p>'; return; }
 
   let [lo, hi] = target.split('-').map(Number);
@@ -1078,11 +1098,16 @@ function calculate() {
   STATE.weekStart = Number($('#weekStart').value);
 
   comboCache.clear();
+  STATE.targetWeekly = weekly;
   const raw = generateSchedules(weekly, pills, STATE.allowHalf, STATE.dayPattern);
   const sortBy = $('#sortBy').value;
   // Filter: only keep schedules that match the target weekly dose exactly
   const matched = raw.filter(s => Math.abs(s.totalMg - weekly) < 0.01);
-  const ranked = rankSchedules(matched.length ? matched : raw, sortBy);
+  // V.3: ถ้าไม่มีตัวเลือกที่ตรงพอดี ให้เรียงตามความใกล้เคียงและ "เตือน" (เดิมแสดงปนไปเงียบ ๆ)
+  STATE.approx = matched.length === 0 && raw.length > 0;
+  const pool = matched.length ? matched
+    : [...raw].sort((a, b) => Math.abs(a.totalMg - weekly) - Math.abs(b.totalMg - weekly));
+  const ranked = rankSchedules(pool, sortBy);
   // Dedup: ถ้า sorted dose pattern เหมือนกัน เก็บแค่ตัวแรก (ตัวที่กระจายครบวันจะ rank สูงกว่า)
   const seenFP = new Set();
   const deduped = ranked.filter(s => {
@@ -1094,15 +1119,30 @@ function calculate() {
   STATE.schedules = deduped.slice(0, 30);
 
   if (!STATE.schedules.length) {
+    // V.3: บอกสาเหตุให้ตรงขึ้น — เกิน 15 mg/วัน (105 mg/สัปดาห์) จัดยาไม่ได้แน่นอน
+    const hint = weekly > 105
+      ? `ขนาด ${fmt(weekly)} mg/สัปดาห์ เกินเพดาน 15 mg/วัน (105 mg/สัปดาห์) ของเครื่องมือนี้`
+      : 'ลองเลือกขนาดเม็ดยาเพิ่มเติม หรือเปิดใช้แบ่งครึ่งเม็ด';
     $('#resultsSection').classList.remove('hidden');
+    $('#approxWarn').classList.add('hidden');
     $('#schedulesGrid').innerHTML = `
       <div class="col-span-2 p-8 text-center bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl">
         <div class="text-3xl mb-2">🤔</div>
         <p class="font-semibold">ไม่พบการจัดยาที่เหมาะสม</p>
-        <p class="text-xs text-slate-500 mt-1">ลองเลือกขนาดเม็ดยาเพิ่มเติม หรือเปิดใช้แบ่งครึ่งเม็ด</p>
+        <p class="text-xs text-slate-500 mt-1">${hint}</p>
       </div>`;
     $('#resultCount').textContent = '0';
     return;
+  }
+
+  // V.3: แถบเตือนเมื่อทุกตัวเลือกไม่ตรงขนาดที่สั่ง
+  const warn = $('#approxWarn');
+  if (STATE.approx) {
+    const best = STATE.schedules[0];
+    warn.innerHTML = `⚠️ <b>ไม่มีตัวเลือกที่ได้ ${fmt(weekly)} mg/สัปดาห์พอดี</b> — ด้านล่างเป็นตัวเลือกที่ใกล้เคียงที่สุด (ใกล้สุด ${fmt(best.totalMg)} mg/สัปดาห์) กรุณาตรวจสอบก่อนใช้ หรือเลือกขนาดเม็ดยาเพิ่ม/เปิดแบ่งครึ่งเม็ด`;
+    warn.classList.remove('hidden');
+  } else {
+    warn.classList.add('hidden');
   }
 
   $('#resultCount').textContent = `${STATE.schedules.length} ตัวเลือก`;
@@ -1143,7 +1183,7 @@ function syncDatesFromDayCount() {
     const start = new Date(sd + 'T00:00:00');
     const end = new Date(start);
     end.setDate(end.getDate() + dc);
-    setDateInput('#endDate', end.toISOString().slice(0, 10));
+    setDateInput('#endDate', toLocalISO(end));
     updateDispense();
   }
 }
@@ -1161,18 +1201,17 @@ function syncDayCountFromDates() {
 
 function handleDateInput(id) {
   const el = $(id);
-  const iso = beToISO(el.value);
-  if (iso) el.dataset.iso = iso;
-}
-
-function getDispenseDays() {
-  const sd = getDateISO('#startDate');
-  const ed = getDateISO('#endDate');
-  if (!sd || !ed) return 0;
-  const start = new Date(sd + 'T00:00:00');
-  const end = new Date(ed + 'T00:00:00');
-  const diff = Math.round((end - start) / (1000*60*60*24));
-  return diff > 0 ? diff : 0;
+  const raw = (el.value || '').trim();
+  if (!raw) { el.dataset.iso = ''; const p0 = $(id + 'Picker'); if (p0) p0.value = ''; return; }
+  const iso = beToISO(raw);
+  if (iso) {
+    setDateInput(id, iso);           // จัดรูปแบบให้เป็น DD/MM/พ.ศ. + ซิงค์ picker
+  } else if (el.dataset.iso) {
+    // V.3: พิมพ์วันที่ไม่ถูกต้อง → คืนค่าเดิม (เดิมค้างข้อความผิดไว้ แต่ระบบใช้ค่าเก่าเงียบ ๆ)
+    el.value = isoToBE(el.dataset.iso);
+  } else {
+    el.value = '';
+  }
 }
 
 function calcDispenseForSchedule(sched) {
@@ -1215,8 +1254,10 @@ function updateDispense() {
 /* ====================== State persistence ====================== */
 
 /* ====================== Theme ====================== */
+// V.3: บางเบราว์เซอร์/โหมดส่วนตัวปิด localStorage ไว้ — เดิม throw แล้วทั้งแอปไม่ทำงานเลย
 function initTheme() {
-  const saved = localStorage.getItem('wfr-theme');
+  let saved = null;
+  try { saved = localStorage.getItem('wfr-theme'); } catch (e) { /* storage ปิดอยู่ — ใช้ค่าระบบแทน */ }
   if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.classList.add('dark');
   }
@@ -1233,7 +1274,7 @@ function buildPrintSummary() {
       <p style="margin:0 0 8px; font-size:12px;">
         <b>INR เป้าหมาย:</b> ${p.target} &nbsp;
         <b>INR ล่าสุด:</b> ${p.inr || '—'} &nbsp;
-        <b>วันที่:</b> ${isoToBE(new Date().toISOString().slice(0,10))}
+        <b>วันที่:</b> ${isoToBE(todayISO())}
       </p>
       <p style="margin:4px 0; font-size:13px;">
         <b>ขนาดยาเดิม:</b> ${fmt(STATE.prevDose)} mg/wk &nbsp;→&nbsp;
@@ -1293,11 +1334,41 @@ function openCalendarModal() {
     btn.classList.remove('opacity-50','cursor-not-allowed');
   }
 
-  const now = new Date();
-  $('#calMonth').value = now.getMonth();
-  $('#calYearBE').value = now.getFullYear() + 543;
+  // V.3: ตั้งเดือน/ปีตามวันที่เริ่มกินยา (ถ้ามี) ไม่ใช่เดือนปัจจุบันเสมอ
+  const baseISO = getDateISO('#startDate');
+  const base = baseISO ? new Date(baseISO + 'T00:00:00') : new Date();
+  $('#calMonth').value = base.getMonth();
+  $('#calYearBE').value = base.getFullYear() + 543;
 
   $('#calendarModal').classList.remove('hidden');
+}
+
+// วาดเม็ดยาในปฏิทิน: วงกลม 1 ใบ = 1 เม็ด, ครึ่งเม็ด = ครึ่งวงกลม (ตัวเลขข้างใน = ขนาด mg)
+// ต้องหน้าตาตรงกับ renderPillBadge (ตารางการจัดยา) และ pillHTML (นับเม็ดยา)
+function renderCalPills(combo) {
+  return Object.keys(combo).map(Number).sort((a,b)=>a-b).flatMap(m => {
+    const { whole, half } = combo[m];
+    const arr = [];
+    const bg = PILL_COLORS[m], fg = PILL_TEXT_COLORS[m], bd = PILL_BORDER_COLORS[m];
+    for (let i = 0; i < whole; i++) {
+      arr.push(`<span class="cal-pill-circle" style="background:${bg};color:${fg};border-color:${bd};">${m}</span>`);
+    }
+    if (half) {
+      // รูปครึ่งเม็ด: โค้งด้านซ้าย ตัดตรงด้านขวา (ตัวเลข mg อยู่กลางรูป ไม่ถูกตัด)
+      arr.push(`<span class="cal-pill-circle cal-pill-half" style="background:${bg};color:${fg};border-color:${bd};">${m}</span>`);
+    }
+    return arr;
+  }).join('');
+}
+
+// ข้อความกำกับชุดเม็ดยา เช่น "2×3mg + ½×5mg"
+function comboText(combo) {
+  return Object.keys(combo).map(Number).sort((a,b)=>a-b).map(m => {
+    const { whole, half } = combo[m];
+    if (!whole && !half) return '';
+    const cnt = whole ? (half ? `${whole}½` : `${whole}`) : '½';
+    return `${cnt}×${m}mg`;
+  }).filter(Boolean).join(' + ');
 }
 
 function buildCalendarHTML(opts) {
@@ -1338,30 +1409,11 @@ function buildCalendarHTML(opts) {
     let pillsHTML;
     if (isStop) {
       pillsHTML = `<div class="cal-pills" style="color:#666;">— หยุดยา —</div>`;
-    } else if (isBW) {
-      // Text-only breakdown for B&W
-      const txt = Object.keys(combo).map(Number).sort((a,b)=>a-b).map(m => {
-        const {whole, half} = combo[m];
-        if (!whole && !half) return '';
-        const cnt = whole + (half ? '½' : '');
-        return `${cnt}×${m}mg`;
-      }).filter(Boolean).join(' + ');
-      pillsHTML = `<div class="cal-pills">${txt}</div>`;
     } else {
-      // Visual circles for color mode
-      const circles = Object.keys(combo).map(Number).sort((a,b)=>a-b).flatMap(m => {
-        const {whole, half} = combo[m];
-        const arr = [];
-        const bg = PILL_COLORS[m], fg = PILL_TEXT_COLORS[m], bd = PILL_BORDER_COLORS[m];
-        for (let i = 0; i < whole; i++) {
-          arr.push(`<span class="cal-pill-circle" style="background:${bg};color:${fg};border-color:${bd};">${m}</span>`);
-        }
-        if (half) {
-          arr.push(`<span class="cal-pill-circle" style="background:linear-gradient(90deg,${bg} 50%,#fff 50%);color:${fg};border-color:${bd};">${m}</span>`);
-        }
-        return arr;
-      }).join('');
-      pillsHTML = `<div class="cal-pills" style="margin-top:2px;">${circles}</div>`;
+      // รูปเม็ดยาจริง ใช้ทั้งโหมดสีและขาว-ดำ (ขาว-ดำ: CSS .cal-bw เปลี่ยนเป็นขอบดำพื้นขาว)
+      // โหมดขาว-ดำ มีข้อความกำกับใต้รูปเม็ดยา ให้เภสัชกร/ผู้ป่วยตรวจซ้ำได้
+      const caption = isBW ? `<div class="cal-pill-text">${comboText(combo)}</div>` : '';
+      pillsHTML = `<div class="cal-pills" style="margin-top:2px;">${renderCalPills(combo)}${caption}</div>`;
     }
 
     const cellClass = isStop ? 'cal-cell-stop' : '';
@@ -1378,16 +1430,24 @@ function buildCalendarHTML(opts) {
       </div>`;
   }
 
+  // V.3: เติมช่องว่างท้ายเดือน ให้กริดครบ 7 ช่องทุกแถว (เดิมแถวสุดท้ายขาด กรอบเบี้ยว)
+  const trailing = (7 - ((startOffset + daysInMonth) % 7)) % 7;
+  for (let i = 0; i < trailing; i++) cells += `<div class="cal-cell-other"></div>`;
+
   // Used pills legend
   const usedPills = new Set();
   for (const c of sched.days) if (c) for (const m in c) if (c[m].whole || c[m].half) usedPills.add(Number(m));
   const legendHTML = [...usedPills].sort((a,b)=>a-b).map(m => {
-    if (isBW) return `<span style="margin-right:10px;font-size:10pt;">${m} mg</span>`;
     const bg = PILL_COLORS[m], fg = PILL_TEXT_COLORS[m], bd = PILL_BORDER_COLORS[m];
     return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:10pt;">
       <span class="cal-pill-circle" style="background:${bg};color:${fg};border-color:${bd};">${m}</span>${m} mg
     </span>`;
-  }).join('');
+  }).join('')
+  // อธิบายสัญลักษณ์ครึ่งเม็ด เฉพาะเมื่อตารางนี้มีการแบ่งครึ่ง
+  + (sched.days.some(c => c && Object.keys(c).some(m => c[m].half > 0))
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:10pt;">
+        <span class="cal-pill-circle cal-pill-half" style="background:#fff;color:#000;border-color:#000;">½</span>= ครึ่งเม็ด
+      </span>` : '');
 
   return `
     <div class="${isBW ? 'cal-bw' : ''}" style="font-family:Sarabun,sans-serif;color:#000;">
@@ -1404,7 +1464,7 @@ function buildCalendarHTML(opts) {
       <div style="margin:4px 0;font-size:10pt;">${legendHTML}</div>
       <div class="cal-grid">${headerCells}${cells}</div>
       <div style="margin-top:6px;font-size:9pt;color:#444;text-align:right;">
-        พิมพ์เมื่อ ${isoToBE(new Date().toISOString().slice(0,10))}
+        พิมพ์เมื่อ ${isoToBE(todayISO())}
       </div>
     </div>
   `;
@@ -1436,13 +1496,21 @@ function printCalendar() {
   $('#calendarModal').classList.add('hidden');
 
   // Trigger print, then cleanup
+  // V.3: ล้าง #calendarPrint หลังพิมพ์ด้วย — เดิมปฏิทินเก่าค้างไว้และติดไปกับการสั่งพิมพ์ครั้งถัดไป
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    document.body.classList.remove('printing-calendar');
+    ['print-cal-A4-portrait','print-cal-A4-landscape','print-cal-A5-portrait','print-cal-A5-landscape']
+      .forEach(c => document.body.classList.remove(c));
+    $('#calendarPrint').innerHTML = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
   setTimeout(() => {
     window.print();
-    setTimeout(() => {
-      document.body.classList.remove('printing-calendar');
-      ['print-cal-A4-portrait','print-cal-A4-landscape','print-cal-A5-portrait','print-cal-A5-landscape']
-        .forEach(c => document.body.classList.remove(c));
-    }, 100);
+    setTimeout(cleanup, 800);
   }, 50);
 }
 
@@ -1451,6 +1519,8 @@ function clearResults() {
   STATE.schedules = [];
   STATE.selectedIndex = -1;
   STATE.printSelected.clear();
+  STATE.approx = false;
+  $('#approxWarn').classList.add('hidden');
   $('#resultsSection').classList.add('hidden');
   $('#dispenseSection').classList.add('hidden');
   $('#schedulesGrid').innerHTML = '';
@@ -1473,6 +1543,7 @@ function initPillCounter() {
   const data = {};
   mgList.forEach(mg => { data[mg] = {}; dayIds.forEach(d => { data[mg][d] = 0; }); });
 
+  // เม็ดยาในหน้าต่างนับเม็ดยา — ต้องหน้าตาตรงกับ renderPillBadge (ตารางการจัดยา) และ renderCalPills (ปฏิทิน)
   function pillHTML(mg, count, day) {
     if (count <= 0) return '<span class="text-slate-300 text-xs">—</span>';
     const s = PS[mg];
@@ -1484,7 +1555,8 @@ function initPillCounter() {
       html += `<span class="pill-tap inline-flex items-center justify-center rounded-full font-bold cursor-pointer hover:opacity-60 active:scale-90 transition" data-mg="${mg}" data-day="${day}" data-amt="0.5" style="${style};width:28px;height:28px;font-size:13px;" title="กดเพื่อเอาออก">${mg}</span>`;
     }
     if (hasHalf) {
-      html += `<span class="pill-tap inline-flex items-center justify-center rounded-full font-bold cursor-pointer hover:opacity-60 active:scale-90 transition" data-mg="${mg}" data-day="${day}" data-amt="0.5" style="${style};width:28px;height:28px;font-size:13px;clip-path:inset(0 50% 0 0);" title="กดเพื่อเอาออก">${mg}</span>`;
+      // ครึ่งเม็ด: รูปครึ่งวงกลมแบบเดียวกับตารางการจัดยาและปฏิทิน (ตัวเลข mg ไม่ถูกตัด)
+      html += `<span class="pill-tap pill-half inline-flex items-center justify-center font-bold cursor-pointer hover:opacity-60 active:scale-90 transition" data-mg="${mg}" data-day="${day}" data-amt="0.5" style="${style};height:28px;font-size:12px;" title="กดเพื่อเอาออก">${mg}</span>`;
     }
     return html;
   }
@@ -1612,6 +1684,18 @@ function initPillCounter() {
     $('#prevDose').step = '0.5';
     $('#prevDose').value = exact;
 
+    // V.3: ติ๊กขนาดเม็ดยาที่ผู้ป่วยใช้อยู่ให้อัตโนมัติ (เดิมนับ 5 mg แต่ตั้งค่าไม่ได้เลือก → จัดยาไม่ตรงของเดิม)
+    let usedHalf = false;
+    mgList.forEach(mg => {
+      const used = dayIds.some(d => data[mg][d] > 0);
+      if (dayIds.some(d => data[mg][d] % 1 !== 0)) usedHalf = true;
+      if (used) {
+        const cb = document.querySelector(`.pill-check[data-mg="${mg}"]`);
+        if (cb && !cb.checked) cb.checked = true;
+      }
+    });
+    if (usedHalf && !$('#allowHalf').checked) $('#allowHalf').checked = true;
+
     // Store pill matrix + day totals in STATE for smart ranking
     STATE.currentPattern = {};
     dayIds.forEach(d => {
@@ -1624,20 +1708,31 @@ function initPillCounter() {
     // Auto-select "เปลี่ยนน้อยสุด" sort mode
     $('#sortBy').value = 'leastChange';
 
+    STATE.applyingCounter = true;           // V.3: บอก handler ว่าค่านี้มาจากการนับเม็ดยา ไม่ใช่ผู้ใช้พิมพ์เอง
     $('#prevDose').dispatchEvent(new Event('input', {bubbles:true}));
+    STATE.applyingCounter = false;
     clearResults();
     modal.classList.add('hidden');
   });
 }
 
 function bindEvents() {
-  $('#prevDose').addEventListener('input', () => { updatePct(); renderAdjustButtons(); suggestFromINR(); clearResults(); });
+  $('#prevDose').addEventListener('input', () => {
+    // V.3: ถ้าผู้ใช้พิมพ์ขนาดยาเดิมเอง ข้อมูลนับเม็ดยาเดิมใช้ไม่ได้แล้ว
+    // (เดิมค้างไว้ ทำให้โหมด "เปลี่ยนน้อยสุด" และ chip "เปลี่ยน N วัน" อ้างอิงของเก่า)
+    if (!STATE.applyingCounter) { STATE.currentPattern = null; STATE.currentPillMatrix = null; }
+    updatePct(); renderAdjustButtons(); suggestFromINR(); clearResults();
+  });
   $('#newDose').addEventListener('input', () => { updatePct(); clearResults(); });
   $('#btnCalculate').addEventListener('click', calculate);
 
   $$('.pill-check').forEach(c => c.addEventListener('change', () => { clearResults(); }));
   $('#allowHalf').addEventListener('change', () => { clearResults(); });
-  $('#weekStart').addEventListener('change', () => { if (STATE.schedules.length) renderResults(); });
+  $('#weekStart').addEventListener('change', () => {
+    // V.3: เดิมไม่ได้อัปเดต STATE ทำให้กดเปลี่ยนแล้วตาราง/ปฏิทินไม่ขยับ
+    STATE.weekStart = Number($('#weekStart').value);
+    if (STATE.schedules.length) renderResults();
+  });
   $('#sortBy').addEventListener('change', () => { if (STATE.schedules.length) calculate(); });
 
   $('#pTarget').addEventListener('change', suggestFromINR);
@@ -1655,6 +1750,19 @@ function bindEvents() {
     const iso = $('#endDatePicker').value;
     if (iso) { setDateInput('#endDate', iso); syncDayCountFromDates(); updateDispense(); }
   });
+  // เบราว์เซอร์ที่ไม่รองรับ ::-webkit-calendar-picker-indicator (เช่น Firefox) — เปิดปฏิทินด้วย showPicker()
+  const hasWebkitIndicator = !!(window.CSS && CSS.supports && CSS.supports('selector(::-webkit-calendar-picker-indicator)'));
+  if (!hasWebkitIndicator) {
+    $$('.date-picker-btn').forEach(lbl => {
+      lbl.addEventListener('click', () => {
+        const inp = lbl.querySelector('input[type="date"]');
+        if (inp && typeof inp.showPicker === 'function') {
+          try { inp.showPicker(); } catch (err) { /* เบราว์เซอร์ไม่อนุญาต — ปล่อยให้ input จัดการเอง */ }
+        }
+      });
+    });
+  }
+
   $('#dayCount').addEventListener('input', syncDatesFromDayCount);
   $('#dayCount').addEventListener('change', syncDatesFromDayCount);
   $('#dayMinus').addEventListener('click', () => {
@@ -1672,10 +1780,12 @@ function bindEvents() {
 
   $('#btnTheme').addEventListener('click', () => {
     document.documentElement.classList.toggle('dark');
-    localStorage.setItem('wfr-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    try {
+      localStorage.setItem('wfr-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    } catch (e) { /* storage ปิดอยู่ — สลับธีมได้แต่ไม่จำค่า */ }
   });
 
-  $('#btnPrint').addEventListener('click', () => { buildPrintSummary(); window.print(); });
+  $('#btnPrint').addEventListener('click', () => { $('#calendarPrint').innerHTML = ''; buildPrintSummary(); window.print(); });
   $('#btnCalendar').addEventListener('click', openCalendarModal);
   $('#btnPrintCalendar').addEventListener('click', printCalendar);
 
@@ -1685,11 +1795,10 @@ function bindEvents() {
 
 /* ====================== Init ====================== */
 document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
+  try { initTheme(); } catch (e) { console.warn('theme init:', e); }
   // Default startDate to today (BE format)
-  const todayISO = new Date().toISOString().slice(0, 10);
-  setDateInput('#startDate', todayISO);
-  $('#startDatePicker').value = todayISO;
+  const today = todayISO();
+  setDateInput('#startDate', today);
   updatePct();
   renderAdjustButtons();
   suggestFromINR();
@@ -1755,7 +1864,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <label class="flex-1 cursor-pointer"><input type="radio" name="calColor" value="bw" class="peer sr-only" checked /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">⬜ ขาว-ดำ</span></label>
           <label class="flex-1 cursor-pointer"><input type="radio" name="calColor" value="color" class="peer sr-only" /><span class="block text-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 peer-checked:border-brand-500 peer-checked:bg-brand-50 dark:peer-checked:bg-brand-900/30 peer-checked:text-brand-700 dark:peer-checked:text-brand-300 peer-checked:font-semibold">🎨 สี</span></label>
         </div>
-        <p class="text-[11px] text-slate-500 mt-1">ขาว-ดำ: ตัดสีพื้น/วงกลมเม็ดยา ใช้ตัวอักษรล้วน — ประหยัดหมึก</p>
+        <p class="text-[11px] text-slate-500 mt-1">ขาว-ดำ: เม็ดยาเป็นวงกลมขอบดำ + ข้อความกำกับ (เช่น 2×3mg) ตัดสีพื้นออก — ประหยัดหมึก</p>
       </div>
 
       <button id="btnPrintCalendar" class="w-full py-3 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold">🖨️ พิมพ์ปฏิทิน</button>
@@ -1764,7 +1873,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
 <!-- Calendar Print Output (filled before print) -->
-<div id="calendarPrint" class="hidden print:block"></div>
+<div id="calendarPrint" class="hidden"></div>
 
 <!-- Changelog Modal -->
 <div id="changelogModal" class="fixed inset-0 z-50 hidden no-print">
@@ -1775,6 +1884,31 @@ document.addEventListener('DOMContentLoaded', () => {
       <button onclick="document.getElementById('changelogModal').classList.add('hidden')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-xl">✕</button>
     </div>
     <div class="text-sm space-y-3">
+      <div>
+        <div class="font-bold text-amber-600 dark:text-amber-400">V.3 <span class="text-xs font-normal text-slate-400">(แก้ bug ต่อจาก V.2)</span></div>
+        <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug วันที่คลาดเคลื่อน 1 วัน — วันที่เริ่มกินยาเริ่มต้น และการคำนวณวันนัดจาก "จำนวนวัน" (เกิดจากใช้เวลา UTC แทนเวลาไทย)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug ปฏิทินที่พิมพ์ไปแล้วค้างอยู่ และติดออกไปกับการสั่งพิมพ์ครั้งถัดไป</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug โหมด "เปลี่ยนน้อยสุด" ยังอ้างอิงผลนับเม็ดยาเก่า หลังผู้ใช้พิมพ์ขนาดยาเดิมใหม่เอง (chip "เปลี่ยน N วัน" ก็ผิดตาม)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug เปลี่ยน "สัปดาห์เริ่มจากวัน" แล้วตารางและปฏิทินไม่อัปเดตจนกว่าจะกดคำนวณใหม่</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> เตือนเมื่อไม่มีตัวเลือกที่ได้ขนาดตรงพอดี + chip ⚠️ บอกส่วนต่าง (เดิมแสดงตัวเลือกที่ขนาดไม่ตรงปนมาเงียบ ๆ)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug ปฏิทินโหมดขาว-ดำ แสดง "0½×3mg" เมื่อวันนั้นกินครึ่งเม็ดอย่างเดียว</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug ใบพิมพ์แสดง INR เป้าหมายค้างที่ 2.0-3.0 และ INR ล่าสุดเป็น "—" เสมอ</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ตรวจสอบวันที่ พ.ศ. ที่พิมพ์เอง (เช่น 31/02 ไม่ผ่านแล้ว) คืนค่าเดิมถ้าไม่ถูกต้อง + ซิงค์กับปุ่มเลือกวันที่ 📅</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> นับเม็ดยาแล้วติ๊กขนาดเม็ดยา (และแบ่งครึ่งเม็ด) ที่ผู้ป่วยใช้อยู่ให้อัตโนมัติ</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินเปิดที่เดือนของวันเริ่มกินยา + เติมช่องว่างท้ายเดือนให้กริดเต็มสัปดาห์</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แจ้งสาเหตุชัดเจนเมื่อขนาดยาเกินเพดาน 15 mg/วัน (105 mg/สัปดาห์)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug หน้าเว็บใช้งานไม่ได้ทั้งหน้า เมื่อเบราว์เซอร์ปิดการเก็บข้อมูล (โหมดส่วนตัว/เปิดจากบางแอป)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug ปุ่ม 📅 เลือกวันที่ (วันที่เริ่มกินยา / วันนัดครั้งถัดไป) ต้องกดชิดมุมขวาถึงจะขึ้นปฏิทิน — ตอนนี้กดตรงไหนของปุ่มก็ได้</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินโหมดขาว-ดำ แสดง <b>รูปเม็ดยา</b> แล้ว (วงกลมขอบดำ มีตัวเลข mg ข้างใน) พร้อมคำอธิบายสัญลักษณ์ครึ่งเม็ดในแถบ legend — เดิมมีแต่ตัวอักษร</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินขาว-ดำ มี <b>ข้อความกำกับใต้รูปเม็ดยา</b> เช่น "2×3mg + ½×5mg" ไว้ตรวจซ้ำ</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> เพิ่มชื่อผู้พัฒนาที่ท้ายหน้า "Warfarin Planner PRO V.3 โดย นพ.ธนกฤต โอลาพฤกษ์"</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ตารางการจัดยาเรียงตาม <b>ความเรียบง่าย</b> เป็นค่าเริ่มต้น (เดิมเป็น "เปลี่ยนน้อยสุด") — ถ้ากดนับเม็ดยาเดิม ระบบจะสลับเป็น "เปลี่ยนน้อยสุด" ให้อัตโนมัติเหมือนเดิม</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดเป็น <b>ครึ่งวงกลมพอดี</b> (กว้างครึ่งหนึ่งของเม็ดเต็มเป๊ะ) ให้ดูออกทันทีว่าเป็นครึ่งเม็ด — ก่อนหน้านี้กว้างเกินไปจนดูเหมือนเม็ดเต็ม</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดใน <b>ตารางการจัดยา</b> และ <b>หน้าต่างนับเม็ดยา</b> ใช้รูปครึ่งวงกลมแบบเดียวกับปฏิทิน — เดิมครอบตัดวงกลมทำให้ตัวเลข mg ขาดครึ่ง</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดวาดเป็น <b>รูปเม็ดยาที่ถูกผ่าครึ่งจริง</b> — ส่วนโค้งซ้ายกลมเต็มวง ตัดตรงด้านขวา และตัวเลข mg ยังเต็มตัว ไม่ถูกตัด (ใช้ทั้งโหมดสีและขาว-ดำ)</li>
+        </ul>
+      </div>
       <div>
         <div class="font-bold text-emerald-600 dark:text-emerald-400">V.2</div>
         <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
