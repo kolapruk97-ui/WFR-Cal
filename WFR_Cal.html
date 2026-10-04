@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Warfarin Planner PRO V.3</title>
-<meta name="description" content="Warfarin Planner PRO V.3 — เครื่องมือคำนวณขนาดยาวาร์ฟาริน พร้อมคำแนะนำปรับขนาดตาม INR" />
+<title>Warfarin Cal PRO V.3</title>
+<meta name="description" content="Warfarin Cal PRO V.3 — เครื่องมือคำนวณขนาดยาวาร์ฟาริน พร้อมคำแนะนำปรับขนาดตาม INR" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -151,7 +151,7 @@ tailwind.config = {
         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
       </div>
       <div>
-        <h1 class="text-lg md:text-xl font-bold leading-tight">Warfarin Planner <span class="text-xs font-semibold text-brand-600 dark:text-brand-500 align-top">PRO</span> <span class="text-xs font-normal text-slate-400">V.3</span></h1>
+        <h1 class="text-lg md:text-xl font-bold leading-tight">Warfarin Cal <span class="text-xs font-semibold text-brand-600 dark:text-brand-500 align-top">PRO</span> <span class="text-xs font-normal text-slate-400">V.3</span></h1>
       </div>
     </div>
     <div class="flex items-center gap-2">
@@ -272,10 +272,6 @@ tailwind.config = {
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ขนาดยาเดิม (mg/สัปดาห์)</label>
         <input type="number" id="prevDose" step="1" min="0" max="150" class="w-full mt-1 px-4 py-3 text-xl font-semibold rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none" placeholder="0" />
-        <button type="button" id="btnOpenPillCounter" class="mt-2 w-full px-3 py-2 text-sm font-semibold rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 active:scale-95 transition">
-          💊 นับเม็ดยา
-        </button>
-        <div id="inrSuggestion" class="mt-3 text-sm"></div>
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ขนาดยาใหม่ (mg/สัปดาห์)</label>
@@ -285,6 +281,14 @@ tailwind.config = {
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">% เปลี่ยนแปลง</label>
         <div id="pctChange" class="mt-1 px-4 py-3 text-xl font-bold rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500">—</div>
       </div>
+    </div>
+
+    <!-- ปุ่มนับเม็ดยา + คำแนะนำตาม INR: อยู่กลาง กว้างเต็มแถว (สูงสุด max-w-2xl) -->
+    <div class="mt-4 w-full max-w-2xl mx-auto">
+      <button type="button" id="btnOpenPillCounter" class="w-full px-3 py-2.5 text-sm font-semibold rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 active:brightness-95 transition">
+        💊 นับเม็ดยา
+      </button>
+      <div id="inrSuggestion" class="mt-3 text-sm w-full max-w-md mx-auto"></div>
     </div>
 
     <div class="mt-4">
@@ -430,7 +434,7 @@ tailwind.config = {
 
   <footer class="text-center text-xs text-slate-400 dark:text-slate-500 py-6 no-print">
     <p>⚠️ เครื่องมือนี้ใช้เพื่อช่วยคำนวณเท่านั้น การตัดสินใจให้ยาต้องอยู่ภายใต้ดุลยพินิจของบุคลากรทางการแพทย์</p>
-    <p class="mt-2">Warfarin Planner PRO V.3 โดย นพ.ธนกฤต โอลาพฤกษ์</p>
+    <p class="mt-2">Warfarin Cal PRO V.3 โดย นพ.ธนกฤต โอลาพฤกษ์</p>
     <p class="mt-1">Inspired by <a href="https://warfarin-net.github.io/warfarin-planner/" target="_blank" rel="noopener" class="text-brand-500 hover:underline">Warfarin คิดแป๊ปเดียว!</a> โดย ภก.นราวิชญ์ คำยวง</p>
     <p class="mt-1">ข้อมูลทั้งหมดบันทึกในเครื่องของคุณเท่านั้น · ไม่มีการส่งข้อมูลออก</p>
   </footer>
@@ -1081,7 +1085,7 @@ function suggestFromINR() {
   // V.3: เก็บค่าที่กรอกไว้ใน STATE ด้วย — เดิมใบพิมพ์แสดง INR เป้าหมายค้างที่ 2-3 และ INR ล่าสุดเป็น "—" เสมอ
   STATE.patient.inr = $('#pINR').value;
   STATE.patient.target = target;
-  if (!inr) { container.innerHTML = '<p class="text-xs text-slate-500">กรอก INR เพื่อดูคำแนะนำ</p>'; container.dataset.html = ''; return; }
+  if (!inr) { container.innerHTML = '<p class="text-xs text-slate-500 text-center">กรอก INR เพื่อดูคำแนะนำ</p>'; container.dataset.html = ''; return; }
 
   let [lo, hi] = target.split('-').map(Number);
   let rec = null; let color = 'blue'; let icon = 'ℹ️';
@@ -1128,20 +1132,15 @@ function suggestFromINR() {
   if (rec.pct !== null && prevDose > 0) newDoseSuggest = Math.round(prevDose * (1 + rec.pct / 100));
 
   const html = `
-    <div class="border rounded-lg p-3 ${colorMap[color]}">
-      <div class="flex items-start gap-2">
-        <span class="text-lg">${icon}</span>
-        <div class="flex-1">
-          <div class="font-semibold">${rec.action}</div>
-          <div class="text-xs mt-0.5">${rec.text}</div>
-          ${newDoseSuggest !== null ? `
-            <button type="button" id="btnApplySuggest" class="mt-2 px-4 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 active:brightness-90 transition shadow-sm">
-              ใช้ขนาด ${fmt(newDoseSuggest)} mg/สัปดาห์
-            </button>` : (rec.pct !== null ? `<p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ กรอกขนาดยาเดิมเพื่อคำนวณขนาดแนะนำ</p>` : '')}
-        </div>
-      </div>
+    <div class="border rounded-lg p-3 text-center ${colorMap[color]}">
+      <div class="font-semibold"><span class="text-lg align-middle mr-1">${icon}</span>${rec.action}</div>
+      <div class="text-xs mt-0.5">${rec.text}</div>
+      ${newDoseSuggest !== null ? `
+        <button type="button" id="btnApplySuggest" class="mt-2 px-4 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 active:brightness-90 transition shadow-sm">
+          ใช้ขนาด ${fmt(newDoseSuggest)} mg/สัปดาห์
+        </button>` : (rec.pct !== null ? `<p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ กรอกขนาดยาเดิมเพื่อคำนวณขนาดแนะนำ</p>` : '')}
     </div>
-    <p class="text-[10px] text-slate-400 mt-1">* อ้างอิงแนวทางทั่วไป ต้องพิจารณาร่วมกับบริบทผู้ป่วยและดุลยพินิจทางการแพทย์</p>
+    <p class="text-[10px] text-slate-400 mt-1 text-center">* อ้างอิงแนวทางทั่วไป ต้องพิจารณาร่วมกับบริบทผู้ป่วยและดุลยพินิจทางการแพทย์</p>
   `;
   // เนื้อหาเหมือนเดิม → ไม่สร้างใหม่: ถ้าสร้างปุ่มใหม่ระหว่างกด (เช่น ออกจากช่องขนาดยาเดิมแล้วเกิด change)
   // ปุ่มที่กดอยู่จะหายไปกลางคัน ทำให้กดไม่ติด
@@ -2021,6 +2020,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <div>
         <div class="font-bold text-amber-600 dark:text-amber-400">V.3 <span class="text-xs font-normal text-slate-400">(แก้ bug ต่อจาก V.2)</span></div>
         <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> เปลี่ยนชื่อแอปเป็น <b>Warfarin Cal PRO</b> (เดิม Warfarin Planner PRO)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> ปุ่ม "นับเม็ดยา" และกล่องคำแนะนำตาม INR ย้ายมาอยู่กลางหน้า กว้างขึ้น (ใต้ช่องขนาดยาทั้ง 3 ช่อง) ข้อความและปุ่มในกล่องคำแนะนำจัดกึ่งกลาง และกล่องคำแนะนำแคบลง (กว้างสุด 448 px)</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> <b>ไม่แสดงตัวเลือกที่ขนาดรวมไม่ตรงอีกต่อไป</b> — ถ้าจัดไม่ได้พอดี จะขึ้น "ไม่มีตัวเลือกที่ได้ X mg/สัปดาห์พอดี" แทน (เดิมแสดงตัวเลือกใกล้เคียงพร้อมคำเตือน) เพื่อลดความผิดพลาดจากการไม่ได้อ่านผลรวม</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> ปุ่ม "แสดงตัวเลือกอื่น" เปลี่ยนเป็นสีเหลือง ให้เห็นชัดขึ้น</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> แก้ bug หมุนลูกกลิ้งเมาส์ขณะเลือกช่องกรอกตัวเลขอยู่ แล้วขนาดยา/INR/จำนวนวันเปลี่ยนเอง — ตอนนี้ลูกกลิ้งเลื่อนหน้าตามปกติ ค่าในช่องไม่เปลี่ยน</li>
