@@ -261,7 +261,6 @@ tailwind.config = {
         </select>
       </div>
     </div>
-    <div id="inrSuggestion" class="mt-3 text-sm"></div>
   </section>
 
   <!-- Dose Calculator -->
@@ -276,6 +275,7 @@ tailwind.config = {
         <button type="button" id="btnOpenPillCounter" class="mt-2 w-full px-3 py-2 text-sm font-semibold rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 active:scale-95 transition">
           💊 นับเม็ดยา
         </button>
+        <div id="inrSuggestion" class="mt-3 text-sm"></div>
       </div>
       <div>
         <label class="text-sm font-semibold text-slate-600 dark:text-slate-400">ขนาดยาใหม่ (mg/สัปดาห์)</label>
@@ -396,7 +396,6 @@ tailwind.config = {
         </select>
       </div>
     </div>
-    <div id="approxWarn" class="hidden mb-3 px-4 py-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-sm"></div>
     <div id="schedulesGrid" class="grid grid-cols-1 gap-5"></div>
   </section>
 
@@ -452,9 +451,10 @@ const STATE = {
   schedules: [],
   selectedIndex: -1,
   printSelected: new Set(),
+  recommendedCount: 0,      // ความเรียบง่าย: จำนวนตัวเลือกแนะนำที่แสดงก่อน (ที่เหลือซ่อนหลังปุ่ม)
+  showAllOptions: false,
   applyingCounter: false,
   targetWeekly: 0,
-  approx: false,
   startDate: '',
   endDate: ''
 };
@@ -617,49 +617,84 @@ function bestComboFor(targetMg, pills, allowHalf) {
 }
 
 /* ====================== Schedule generator ====================== */
+function scheduleSig(sched) {
+  return sched.map(c => c ? comboKey(c) : 'X').join('/');
+}
+// สร้าง schedule entry + metric จากชุดเม็ดยา 7 วัน (index อา=0 ... ส=6, null = หยุดยา)
+function makeScheduleEntry(sched, alternate = false) {
+  const keys = sched.map(c => c ? comboKey(c) : 'X');
+  const distinctDoses = new Set();
+  let totalPills = 0, totalHalves = 0, totalTypes = new Set();
+  let stopDays = 0, totalMg = 0;
+  for (const c of sched) {
+    if (!c) { stopDays++; distinctDoses.add(0); continue; }
+    const mg = keyComboToMg(c);
+    totalMg += mg;
+    distinctDoses.add(Math.round(mg * 2) / 2);
+    totalPills += comboPillCount(c);
+    totalHalves += comboHalves(c);
+    for (const m in c) if (c[m].whole + c[m].half > 0) totalTypes.add(m);
+  }
+
+  // จ-ศ เท่ากัน + ส,อา เท่ากัน (กลุ่มสัปดาห์/สุดสัปดาห์)
+  const monFriKey = keys[1];
+  const weekdaysSame = monFriKey !== 'X' && [2,3,4,5].every(d => keys[d] === monFriKey);
+  const weekendSame = keys[6] === keys[0];
+  const weekdayDiffersWeekend = monFriKey !== keys[6];
+  const weekendGrouped = weekdaysSame && weekendSame && weekdayDiffersWeekend;
+
+  // กินติดต่อกัน = วันที่กินยาต่อกันเป็นช่วงเดียว (วนรอบสัปดาห์) เช่น ทุกวัน, จ–พฤ, จ–ศ
+  let breaks = 0;
+  for (let d = 0; d < 7; d++) if (sched[d] && !sched[(d + 1) % 7]) breaks++;
+  const consecutive = breaks <= 1;
+  // หยุดเสาร์-อาทิตย์ = มีวันหยุดยา และทุกวันหยุดตกเสาร์/อาทิตย์
+  const weekendStop = stopDays > 0 && sched.every((c, d) => c || d === 0 || d === 6);
+
+  return {
+    days: sched,
+    stopDays,
+    distinctDoses: distinctDoses.size,
+    totalPills,
+    totalHalves,
+    typeCount: totalTypes.size,
+    totalMg: Math.round(totalMg * 100) / 100,
+    weekendGrouped,
+    alternate,
+    consecutive,
+    weekendStop
+  };
+}
+
+/* ---- แบบเดิมของผู้ป่วย (จากการนับเม็ดยา) ---- */
+// คืน schedule entry ของแบบเดิม หรือ null ถ้ายังไม่ได้นับเม็ดยาเดิม
+function currentRegimenEntry() {
+  const pm = STATE.currentPillMatrix;
+  if (!pm) return null;
+  const days = [];
+  for (let d = 0; d < 7; d++) {
+    const combo = {};
+    for (const mg of [1, 2, 3, 5]) {
+      const cnt = (pm[mg] && pm[mg][d]) || 0;
+      if (cnt > 0) combo[mg] = { whole: Math.floor(cnt), half: cnt % 1 >= 0.5 ? 1 : 0 };
+    }
+    days.push(Object.keys(combo).length ? combo : null);
+  }
+  const e = makeScheduleEntry(days, false);
+  e.isCurrent = true;
+  return e;
+}
+
 function generateSchedules(weeklyTarget, pills, allowHalf, dayPattern) {
   if (weeklyTarget <= 0 || pills.length === 0) return [];
   const schedules = [];
   const seen = new Set();
 
-  function addSchedule(sched) {
+  function addSchedule(sched, alternate = false) {
     // sched = array of 7 combos (null = stop)
-    const keys = sched.map(c => c ? comboKey(c) : 'X');
-    const sigKey = keys.join('/');
+    const sigKey = scheduleSig(sched);
     if (seen.has(sigKey)) return;
     seen.add(sigKey);
-
-    // compute metrics
-    const distinctDoses = new Set();
-    let totalPills = 0, totalHalves = 0, totalTypes = new Set();
-    let stopDays = 0, totalMg = 0;
-    for (const c of sched) {
-      if (!c) { stopDays++; distinctDoses.add(0); continue; }
-      const mg = keyComboToMg(c);
-      totalMg += mg;
-      distinctDoses.add(Math.round(mg * 2) / 2);
-      totalPills += comboPillCount(c);
-      totalHalves += comboHalves(c);
-      for (const m in c) if (c[m].whole + c[m].half > 0) totalTypes.add(m);
-    }
-
-    // จ-ศ เท่ากัน + ส,อา เท่ากัน (กลุ่มสัปดาห์/สุดสัปดาห์)
-    const monFriKey = keys[1];
-    const weekdaysSame = monFriKey !== 'X' && [2,3,4,5].every(d => keys[d] === monFriKey);
-    const weekendSame = keys[6] === keys[0];
-    const weekdayDiffersWeekend = monFriKey !== keys[6];
-    const weekendGrouped = weekdaysSame && weekendSame && weekdayDiffersWeekend;
-
-    schedules.push({
-      days: sched,
-      stopDays,
-      distinctDoses: distinctDoses.size,
-      totalPills,
-      totalHalves,
-      typeCount: totalTypes.size,
-      totalMg: Math.round(totalMg * 100) / 100,
-      weekendGrouped
-    });
+    schedules.push(makeScheduleEntry(sched, alternate));
   }
 
   // Place special/stop days based on pattern
@@ -698,6 +733,18 @@ function generateSchedules(weeklyTarget, pills, allowHalf, dayPattern) {
     const combos = findCombinations(perDay, pills, allowHalf);
     for (const c of combos.slice(0, 2)) {
       addSchedule(placeDays(c, c, 0, stops));
+    }
+  }
+
+  // Case 2b: วันเว้นวัน — ขนาดเท่ากันทุกวันที่กิน แต่กระจายวันหยุดไว้กลางสัปดาห์
+  //   กิน 5 วัน: หยุด อ, พฤ   |   กิน 4 วัน: จ พ ศ อา (หยุด อ, พฤ, ส)   |   กิน 3 วัน: จ พ ศ
+  const ALT_STOP_DAYS = { 2: [2, 4], 3: [2, 4, 6], 4: [2, 4, 6, 0] };
+  for (const stops of [2, 3, 4]) {
+    const combos = findCombinations(weeklyTarget / (7 - stops), pills, allowHalf);
+    for (const c of combos.slice(0, 2)) {
+      const sched = new Array(7).fill(c);
+      for (const d of ALT_STOP_DAYS[stops]) sched[d] = null;
+      addSchedule(sched, true);
     }
   }
 
@@ -803,16 +850,35 @@ function rankSchedules(schedules, mode) {
     } else if (mode === 'uniform') {
       if (a.distinctDoses !== b.distinctDoses) return a.distinctDoses - b.distinctDoses;
     } else if (mode === 'fewType') {
+      // แบบกินเต็มเม็ด (ไม่ต้องแบ่งครึ่ง) ขึ้นก่อน แล้วจึงเรียงตามจำนวนชนิดเม็ดยา
+      const wa = a.totalHalves === 0, wb = b.totalHalves === 0;
+      if (wa !== wb) return wa ? -1 : 1;
       if (a.typeCount !== b.typeCount) return a.typeCount - b.typeCount;
+      if (a.totalHalves !== b.totalHalves) return a.totalHalves - b.totalHalves;
     } else if (mode === 'simple') {
-      // simple: เรียบง่ายที่สุด — ดู distinctDoses ก่อน, ถ้าเสมอให้ pattern จ-ศ + ส,อา ขึ้นก่อน
+      // ความเรียบง่าย — ลำดับตามที่ผู้ใช้กำหนด (เทียบทีละข้อ ข้อหลังใช้ตัดสินเมื่อข้อก่อนเสมอกัน):
+      // 1) ระดับขนาดยาน้อยกว่า (วันหยุดยานับเป็น 1 ระดับ)
       if (a.distinctDoses !== b.distinctDoses) return a.distinctDoses - b.distinctDoses;
+      // 2) กินเต็มเม็ด (ไม่ต้องแบ่งครึ่ง)
+      const wa = a.totalHalves === 0, wb = b.totalHalves === 0;
+      if (wa !== wb) return wa ? -1 : 1;
+      // 3) แบบเดิมของผู้ป่วย (มีเฉพาะเมื่อนับเม็ดยาเดิมไว้และขนาดยาเท่าเดิม)
+      if (!!a.isCurrent !== !!b.isCurrent) return a.isCurrent ? -1 : 1;
+      // 4) กินติดต่อกัน
+      if (a.consecutive !== b.consecutive) return a.consecutive ? -1 : 1;
+      // 5) วันเว้นวัน
+      if (a.alternate !== b.alternate) return a.alternate ? -1 : 1;
+      // 6) หยุดเสาร์-อาทิตย์
+      if (a.weekendStop !== b.weekendStop) return a.weekendStop ? -1 : 1;
+      // ที่เหลือ: แบบ จ–ศ + ส,อา และจำนวนเม็ดรวมน้อยกว่า
       if (a.weekendGrouped !== b.weekendGrouped) return a.weekendGrouped ? -1 : 1;
       if (a.totalPills !== b.totalPills) return a.totalPills - b.totalPills;
     }
 
     // Default fallback — pattern จ-ศ + ส,อา ได้ priority หลัง stopDays
     if (a.stopDays !== b.stopDays) return a.stopDays - b.stopDays;
+    // หยุดจำนวนวันเท่ากัน: แบบหยุดท้ายสัปดาห์ (ส, อา) มาก่อนแบบวันเว้นวันเสมอ
+    if (a.alternate !== b.alternate) return a.alternate ? 1 : -1;
     if (a.weekendGrouped !== b.weekendGrouped) return a.weekendGrouped ? -1 : 1;
     if (a.maxPillsPerDay !== b.maxPillsPerDay) return a.maxPillsPerDay - b.maxPillsPerDay;
     if (a.totalHalves !== b.totalHalves) return a.totalHalves - b.totalHalves;
@@ -870,13 +936,18 @@ function renderSchedule(sched, index) {
     : `<span class="chip bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">${sched.distinctDoses} ระดับขนาด</span>`;
   const groupChip = sched.weekendGrouped
     ? `<span class="chip bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300">📅 จ–ศ + ส,อา</span>` : '';
+  const altChip = sched.alternate
+    ? `<span class="chip bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">🔁 วันเว้นวัน</span>` : '';
   const halfChip = sched.totalHalves > 0
     ? `<span class="chip bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">½ × ${sched.totalHalves}</span>` : '';
   // V.3: เตือนเมื่อตารางนี้ให้ขนาดรวมไม่ตรงกับที่สั่ง (เดิมแสดงปนกันโดยไม่บอก)
   const diffTarget = Math.round((sched.totalMg - (STATE.targetWeekly || 0)) * 100) / 100;
   const offTargetChip = (STATE.targetWeekly && Math.abs(diffTarget) >= 0.01)
     ? `<span class="chip bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">⚠️ ต่างจากเป้าหมาย ${diffTarget > 0 ? '+' : '−'}${fmt(Math.abs(diffTarget))} mg</span>` : '';
-  const changeChip = (STATE.currentPattern && sched.daysChanged !== undefined)
+  const currentChip = sched.isCurrent
+    ? `<span class="chip bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">⭐ แบบเดิมของผู้ป่วย</span>`
+    : '';
+  const changeChip = (!sched.isCurrent && STATE.currentPattern && sched.daysChanged !== undefined)
     ? (sched.daysChanged === 0
       ? `<span class="chip bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">✓ เหมือนเดิม</span>`
       : `<span class="chip bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">เปลี่ยน ${sched.daysChanged} วัน</span>`)
@@ -940,8 +1011,10 @@ function renderSchedule(sched, index) {
             <input type="checkbox" class="print-check w-5 h-5 accent-brand-600 cursor-pointer" data-idx="${index}" ${STATE.printSelected.has(index) ? 'checked' : ''} />
           </label>
           <span class="font-bold text-lg text-brand-700 dark:text-brand-400">ตัวเลือก #${index+1}</span>
+          ${currentChip}
           ${uniformChip}
           ${groupChip}
+          ${altChip}
           ${stopChip}
           ${halfChip}
           ${changeChip}
@@ -1008,7 +1081,7 @@ function suggestFromINR() {
   // V.3: เก็บค่าที่กรอกไว้ใน STATE ด้วย — เดิมใบพิมพ์แสดง INR เป้าหมายค้างที่ 2-3 และ INR ล่าสุดเป็น "—" เสมอ
   STATE.patient.inr = $('#pINR').value;
   STATE.patient.target = target;
-  if (!inr) { container.innerHTML = '<p class="text-xs text-slate-500">กรอก INR เพื่อดูคำแนะนำ</p>'; return; }
+  if (!inr) { container.innerHTML = '<p class="text-xs text-slate-500">กรอก INR เพื่อดูคำแนะนำ</p>'; container.dataset.html = ''; return; }
 
   let [lo, hi] = target.split('-').map(Number);
   let rec = null; let color = 'blue'; let icon = 'ℹ️';
@@ -1054,7 +1127,7 @@ function suggestFromINR() {
   let newDoseSuggest = null;
   if (rec.pct !== null && prevDose > 0) newDoseSuggest = Math.round(prevDose * (1 + rec.pct / 100));
 
-  container.innerHTML = `
+  const html = `
     <div class="border rounded-lg p-3 ${colorMap[color]}">
       <div class="flex items-start gap-2">
         <span class="text-lg">${icon}</span>
@@ -1062,7 +1135,7 @@ function suggestFromINR() {
           <div class="font-semibold">${rec.action}</div>
           <div class="text-xs mt-0.5">${rec.text}</div>
           ${newDoseSuggest !== null ? `
-            <button id="btnApplySuggest" class="mt-2 px-4 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 active:scale-95 transition shadow-sm">
+            <button type="button" id="btnApplySuggest" class="mt-2 px-4 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 active:brightness-90 transition shadow-sm">
               ใช้ขนาด ${fmt(newDoseSuggest)} mg/สัปดาห์
             </button>` : (rec.pct !== null ? `<p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ กรอกขนาดยาเดิมเพื่อคำนวณขนาดแนะนำ</p>` : '')}
         </div>
@@ -1070,6 +1143,11 @@ function suggestFromINR() {
     </div>
     <p class="text-[10px] text-slate-400 mt-1">* อ้างอิงแนวทางทั่วไป ต้องพิจารณาร่วมกับบริบทผู้ป่วยและดุลยพินิจทางการแพทย์</p>
   `;
+  // เนื้อหาเหมือนเดิม → ไม่สร้างใหม่: ถ้าสร้างปุ่มใหม่ระหว่างกด (เช่น ออกจากช่องขนาดยาเดิมแล้วเกิด change)
+  // ปุ่มที่กดอยู่จะหายไปกลางคัน ทำให้กดไม่ติด
+  if (container.dataset.html === html) return;
+  container.dataset.html = html;
+  container.innerHTML = html;
   const applyBtn = $('#btnApplySuggest');
   if (applyBtn) applyBtn.addEventListener('click', () => {
     $('#newDose').value = newDoseSuggest;
@@ -1100,18 +1178,28 @@ function calculate() {
   comboCache.clear();
   STATE.targetWeekly = weekly;
   const raw = generateSchedules(weekly, pills, STATE.allowHalf, STATE.dayPattern);
+  // นับเม็ดยาเดิมไว้ + ขนาดยาใหม่เท่าเดิม → ใส่ "แบบเดิมของผู้ป่วย" เป็นตัวเลือกด้วย
+  // (เฉพาะเมื่อเม็ดยาที่ใช้ยังอยู่ในขนาดที่เลือกไว้ และไม่ขัดกับการตั้งค่าแบ่งครึ่งเม็ด)
+  const cur = currentRegimenEntry();
+  if (cur && Math.abs(cur.totalMg - weekly) < 0.01
+      && cur.days.every(c => !c || Object.keys(c).every(m => pills.includes(Number(m))))
+      && (STATE.allowHalf || cur.totalHalves === 0)) {
+    const sig = scheduleSig(cur.days);
+    const dup = raw.findIndex(s => scheduleSig(s.days) === sig);
+    if (dup >= 0) raw.splice(dup, 1);
+    raw.push(cur);
+  }
   const sortBy = $('#sortBy').value;
   // Filter: only keep schedules that match the target weekly dose exactly
   const matched = raw.filter(s => Math.abs(s.totalMg - weekly) < 0.01);
-  // V.3: ถ้าไม่มีตัวเลือกที่ตรงพอดี ให้เรียงตามความใกล้เคียงและ "เตือน" (เดิมแสดงปนไปเงียบ ๆ)
-  STATE.approx = matched.length === 0 && raw.length > 0;
-  const pool = matched.length ? matched
-    : [...raw].sort((a, b) => Math.abs(a.totalMg - weekly) - Math.abs(b.totalMg - weekly));
-  const ranked = rankSchedules(pool, sortBy);
+  // ไม่มีตัวเลือกที่ตรงพอดี → ไม่แสดงตัวเลือกใกล้เคียงเด็ดขาด
+  // (ผู้ใช้อาจไม่ได้อ่านว่าผลรวมจริงเท่าไหร่ — ลด human error)
+  const ranked = rankSchedules(matched, sortBy);
   // Dedup: ถ้า sorted dose pattern เหมือนกัน เก็บแค่ตัวแรก (ตัวที่กระจายครบวันจะ rank สูงกว่า)
   const seenFP = new Set();
   const deduped = ranked.filter(s => {
-    const fp = s.days.map(d => d ? Math.round(keyComboToMg(d) * 100) : 0).sort((a,b) => a - b).join(',');
+    // แบบวันเว้นวันมีขนาดรายวันชุดเดียวกับแบบหยุดท้ายสัปดาห์ — แยก fingerprint ไม่ให้ถูกตัดทิ้ง
+    const fp = s.days.map(d => d ? Math.round(keyComboToMg(d) * 100) : 0).sort((a,b) => a - b).join(',') + (s.alternate ? '|alt' : '') + (s.isCurrent ? '|cur' : '');
     if (seenFP.has(fp)) return false;
     seenFP.add(fp);
     return true;
@@ -1122,30 +1210,36 @@ function calculate() {
     // V.3: บอกสาเหตุให้ตรงขึ้น — เกิน 15 mg/วัน (105 mg/สัปดาห์) จัดยาไม่ได้แน่นอน
     const hint = weekly > 105
       ? `ขนาด ${fmt(weekly)} mg/สัปดาห์ เกินเพดาน 15 mg/วัน (105 mg/สัปดาห์) ของเครื่องมือนี้`
-      : 'ลองเลือกขนาดเม็ดยาเพิ่มเติม หรือเปิดใช้แบ่งครึ่งเม็ด';
+      : 'จากขนาดเม็ดยาที่เลือกไว้ — ลองเลือกขนาดเม็ดยาเพิ่มเติม หรือเปิดใช้แบ่งครึ่งเม็ด';
     $('#resultsSection').classList.remove('hidden');
-    $('#approxWarn').classList.add('hidden');
     $('#schedulesGrid').innerHTML = `
       <div class="col-span-2 p-8 text-center bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl">
         <div class="text-3xl mb-2">🤔</div>
-        <p class="font-semibold">ไม่พบการจัดยาที่เหมาะสม</p>
+        <p class="font-semibold">ไม่มีตัวเลือกที่ได้ ${fmt(weekly)} mg/สัปดาห์พอดี</p>
         <p class="text-xs text-slate-500 mt-1">${hint}</p>
       </div>`;
     $('#resultCount').textContent = '0';
     return;
   }
 
-  // V.3: แถบเตือนเมื่อทุกตัวเลือกไม่ตรงขนาดที่สั่ง
-  const warn = $('#approxWarn');
-  if (STATE.approx) {
-    const best = STATE.schedules[0];
-    warn.innerHTML = `⚠️ <b>ไม่มีตัวเลือกที่ได้ ${fmt(weekly)} mg/สัปดาห์พอดี</b> — ด้านล่างเป็นตัวเลือกที่ใกล้เคียงที่สุด (ใกล้สุด ${fmt(best.totalMg)} mg/สัปดาห์) กรุณาตรวจสอบก่อนใช้ หรือเลือกขนาดเม็ดยาเพิ่ม/เปิดแบ่งครึ่งเม็ด`;
-    warn.classList.remove('hidden');
-  } else {
-    warn.classList.add('hidden');
+  // ความเรียบง่าย: แสดงก่อนเฉพาะตัวเลือกแนะนำ ที่เหลือซ่อนไว้หลังปุ่ม "แสดงตัวเลือกอื่น"
+  //   ตัวเลือกแนะนำ = ดีเท่าอันดับ 1 ในข้อ 1–2 (ระดับขนาด + เต็มเม็ด/ครึ่งเม็ด)
+  //                 หรือ กินขนาดเท่ากันทุกวันที่กิน (เช่น 1.5 mg จ–ส หยุดอาทิตย์) — จำง่ายแม้ต้องแบ่งครึ่ง
+  //   ลำดับในแต่ละกลุ่มคงตามการจัดอันดับเดิม
+  STATE.showAllOptions = false;
+  STATE.recommendedCount = STATE.schedules.length;
+  if (sortBy === 'simple') {
+    const top = STATE.schedules[0];
+    const sameTier = s => s.distinctDoses === top.distinctDoses && (s.totalHalves === 0) === (top.totalHalves === 0);
+    const singleIntakeDose = s => new Set(s.days.filter(Boolean).map(c => keyComboToMg(c))).size === 1;
+    const isRec = s => sameTier(s) || singleIntakeDose(s);
+    const rec = STATE.schedules.filter(isRec);
+    STATE.schedules = rec.concat(STATE.schedules.filter(s => !isRec(s)));
+    STATE.recommendedCount = rec.length;
   }
-
-  $('#resultCount').textContent = `${STATE.schedules.length} ตัวเลือก`;
+  $('#resultCount').textContent = `${fmt(weekly)} mg/สัปดาห์ · ` + (STATE.recommendedCount < STATE.schedules.length
+    ? `แนะนำ ${STATE.recommendedCount} จาก ${STATE.schedules.length} ตัวเลือก`
+    : `${STATE.schedules.length} ตัวเลือก`);
   STATE.selectedIndex = 0;
   STATE.printSelected.clear();
   renderResults();
@@ -1157,7 +1251,18 @@ function calculate() {
 
 function renderResults() {
   const grid = $('#schedulesGrid');
-  grid.innerHTML = STATE.schedules.map((s, i) => renderSchedule(s, i)).join('');
+  const k = STATE.recommendedCount || STATE.schedules.length;
+  const rest = STATE.schedules.length - k;
+  let html = STATE.schedules.slice(0, k).map((s, i) => renderSchedule(s, i)).join('');
+  if (rest > 0) {
+    html += `<button type="button" id="btnMoreOptions" class="no-print w-full py-3 rounded-xl border border-dashed border-yellow-400 dark:border-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 text-sm font-semibold text-yellow-800 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition">
+      ${STATE.showAllOptions ? '▲ ซ่อน' : '▼ แสดง'}ตัวเลือกอื่นอีก ${rest} แบบ <span class="font-normal text-yellow-700 dark:text-yellow-300">(กินยากกว่า: แต่ละวันกินขนาดไม่เท่ากัน)</span>
+    </button>`;
+    if (STATE.showAllOptions) html += STATE.schedules.slice(k).map((s, j) => renderSchedule(s, k + j)).join('');
+  }
+  grid.innerHTML = html;
+  const more = $('#btnMoreOptions');
+  if (more) more.addEventListener('click', () => { STATE.showAllOptions = !STATE.showAllOptions; renderResults(); });
   grid.querySelectorAll('.schedule-card').forEach(card => {
     card.addEventListener('click', () => {
       STATE.selectedIndex = Number(card.dataset.index);
@@ -1253,6 +1358,21 @@ function updateDispense() {
 
 /* ====================== State persistence ====================== */
 
+/* ====================== จำขนาดเม็ดยาที่มี ====================== */
+// ครั้งแรก = ค่าเริ่มต้นใน HTML (2 mg + 3 mg) ครั้งถัดไปใช้ค่าที่ผู้ใช้เลือกไว้ล่าสุดในเครื่องนี้
+const PILL_PREF_KEY = 'wfr-pills';
+function savePillPrefs() {
+  const mgs = Array.from($$('.pill-check:checked')).map(c => Number(c.dataset.mg));
+  try { localStorage.setItem(PILL_PREF_KEY, JSON.stringify(mgs)); } catch (e) { /* storage ปิดอยู่ — ไม่จำค่า */ }
+}
+function loadPillPrefs() {
+  let mgs = null;
+  try { mgs = JSON.parse(localStorage.getItem(PILL_PREF_KEY)); } catch (e) { mgs = null; }
+  // ไม่มีค่าที่จำไว้ / ค่าเสีย / ไม่ได้เลือกสักขนาด → ใช้ค่าเริ่มต้น
+  if (!Array.isArray(mgs) || !mgs.some(m => [1, 2, 3, 5].includes(m))) return;
+  $$('.pill-check').forEach(c => { c.checked = mgs.includes(Number(c.dataset.mg)); });
+}
+
 /* ====================== Theme ====================== */
 // V.3: บางเบราว์เซอร์/โหมดส่วนตัวปิด localStorage ไว้ — เดิม throw แล้วทั้งแอปไม่ทำงานเลย
 function initTheme() {
@@ -1324,7 +1444,7 @@ function openCalendarModal() {
   } else {
     const list = indices.map(i => {
       const s = STATE.schedules[i];
-      const tag = s.weekendGrouped ? ' (จ-ศ+ส,อา)' : '';
+      const tag = s.weekendGrouped ? ' (จ-ศ+ส,อา)' : (s.alternate ? ' (วันเว้นวัน)' : '');
       const stop = s.stopDays > 0 ? ` หยุด ${s.stopDays}` : '';
       return `<li>#${i+1} — ${fmt(s.totalMg)} mg/wk${tag}${stop}</li>`;
     }).join('');
@@ -1519,8 +1639,6 @@ function clearResults() {
   STATE.schedules = [];
   STATE.selectedIndex = -1;
   STATE.printSelected.clear();
-  STATE.approx = false;
-  $('#approxWarn').classList.add('hidden');
   $('#resultsSection').classList.add('hidden');
   $('#dispenseSection').classList.add('hidden');
   $('#schedulesGrid').innerHTML = '';
@@ -1695,6 +1813,7 @@ function initPillCounter() {
       }
     });
     if (usedHalf && !$('#allowHalf').checked) $('#allowHalf').checked = true;
+    savePillPrefs();
 
     // Store pill matrix + day totals in STATE for smart ranking
     STATE.currentPattern = {};
@@ -1717,16 +1836,30 @@ function initPillCounter() {
 }
 
 function bindEvents() {
-  $('#prevDose').addEventListener('input', () => {
-    // V.3: ถ้าผู้ใช้พิมพ์ขนาดยาเดิมเอง ข้อมูลนับเม็ดยาเดิมใช้ไม่ได้แล้ว
+  // หมุนลูกกลิ้งเมาส์ขณะช่องตัวเลขยังถูกเลือกอยู่ → เบราว์เซอร์จะปรับค่าในช่องแทนการเลื่อนหน้า
+  // (ขนาดยา/INR เปลี่ยนเองโดยไม่ตั้งใจ) — ปล่อยโฟกัสออกจากช่องก่อน ลูกกลิ้งจะเลื่อนหน้าตามปกติ
+  document.addEventListener('wheel', (e) => {
+    const t = e.target;
+    if (t instanceof HTMLInputElement && t.type === 'number' && t === document.activeElement) t.blur();
+  }, { passive: true });
+
+  // ขนาดยาเปลี่ยน → ล้างตารางเดิม ต้องกด "แสดงตัวเลือกการจัดยา" ใหม่
+  // ฟังทั้ง input และ change: บางเบราว์เซอร์/คีย์บอร์ดมือถือ/การเติมค่าอัตโนมัติส่งมาแค่ change
+  // (เดิมฟังแค่ input → ตารางของขนาดเก่าค้างอยู่ และปุ่มคำแนะนำ INR ไม่อัปเดต)
+  const onPrevDoseChange = () => {
+    // ถ้าผู้ใช้พิมพ์ขนาดยาเดิมเอง ข้อมูลนับเม็ดยาเดิมใช้ไม่ได้แล้ว
     // (เดิมค้างไว้ ทำให้โหมด "เปลี่ยนน้อยสุด" และ chip "เปลี่ยน N วัน" อ้างอิงของเก่า)
     if (!STATE.applyingCounter) { STATE.currentPattern = null; STATE.currentPillMatrix = null; }
     updatePct(); renderAdjustButtons(); suggestFromINR(); clearResults();
+  };
+  const onNewDoseChange = () => { updatePct(); clearResults(); };
+  ['input', 'change'].forEach(ev => {
+    $('#prevDose').addEventListener(ev, onPrevDoseChange);
+    $('#newDose').addEventListener(ev, onNewDoseChange);
   });
-  $('#newDose').addEventListener('input', () => { updatePct(); clearResults(); });
   $('#btnCalculate').addEventListener('click', calculate);
 
-  $$('.pill-check').forEach(c => c.addEventListener('change', () => { clearResults(); }));
+  $$('.pill-check').forEach(c => c.addEventListener('change', () => { savePillPrefs(); clearResults(); }));
   $('#allowHalf').addEventListener('change', () => { clearResults(); });
   $('#weekStart').addEventListener('change', () => {
     // V.3: เดิมไม่ได้อัปเดต STATE ทำให้กดเปลี่ยนแล้วตาราง/ปฏิทินไม่ขยับ
@@ -1796,6 +1929,7 @@ function bindEvents() {
 /* ====================== Init ====================== */
 document.addEventListener('DOMContentLoaded', () => {
   try { initTheme(); } catch (e) { console.warn('theme init:', e); }
+  loadPillPrefs();
   // Default startDate to today (BE format)
   const today = todayISO();
   setDateInput('#startDate', today);
@@ -1887,6 +2021,27 @@ document.addEventListener('DOMContentLoaded', () => {
       <div>
         <div class="font-bold text-amber-600 dark:text-amber-400">V.3 <span class="text-xs font-normal text-slate-400">(แก้ bug ต่อจาก V.2)</span></div>
         <ul class="mt-1 space-y-0.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> <b>ไม่แสดงตัวเลือกที่ขนาดรวมไม่ตรงอีกต่อไป</b> — ถ้าจัดไม่ได้พอดี จะขึ้น "ไม่มีตัวเลือกที่ได้ X mg/สัปดาห์พอดี" แทน (เดิมแสดงตัวเลือกใกล้เคียงพร้อมคำเตือน) เพื่อลดความผิดพลาดจากการไม่ได้อ่านผลรวม</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> ปุ่ม "แสดงตัวเลือกอื่น" เปลี่ยนเป็นสีเหลือง ให้เห็นชัดขึ้น</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> แก้ bug หมุนลูกกลิ้งเมาส์ขณะเลือกช่องกรอกตัวเลขอยู่ แล้วขนาดยา/INR/จำนวนวันเปลี่ยนเอง — ตอนนี้ลูกกลิ้งเลื่อนหน้าตามปกติ ค่าในช่องไม่เปลี่ยน</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> แก้ bug ปุ่ม "ใช้ขนาด ... mg/สัปดาห์" (คำแนะนำตาม INR) ต้องกดตรงกลางถึงจะติด — ตอนนี้กดตรงไหนของปุ่มก็ได้</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> แก้ bug เปลี่ยนขนาดยาเดิม/ใหม่แล้ว <b>ตารางการจัดยาของขนาดเก่ายังค้างอยู่</b> ในบางเบราว์เซอร์/มือถือ — ตอนนี้ล้างทุกครั้ง ต้องกด "แสดงตัวเลือกการจัดยา" ใหม่ และหัวรายการบอกขนาดที่ใช้คำนวณ เช่น "28.0 mg/สัปดาห์ · แนะนำ 3 จาก 27 ตัวเลือก"</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> ตัวเลือกที่ <b>กินขนาดเท่ากันทุกวันที่กิน</b> เป็นตัวเลือกแนะนำเสมอแม้ต้องแบ่งครึ่งเม็ด เช่น 9 mg/สัปดาห์ = 3 mg ครึ่งเม็ด จันทร์–เสาร์ หยุดอาทิตย์</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> เรียงแบบ "ความเรียบง่าย" แสดงเฉพาะ <b>ตัวเลือกแนะนำ</b> (ระดับขนาดยาน้อยที่สุด และเต็มเม็ดถ้าทำได้) ตัวเลือกที่กินยากกว่าซ่อนไว้ใต้ปุ่ม "แสดงตัวเลือกอื่น"</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/05</span> จัดลำดับ "ความเรียบง่าย" ใหม่: 1) ระดับขนาดยาน้อย 2) กินเต็มเม็ด 3) แบบเดิมของผู้ป่วย 4) กินติดต่อกัน 5) วันเว้นวัน 6) หยุดเสาร์-อาทิตย์ — แทนเกณฑ์ "กินยาก" ของรายการก่อนหน้า</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/02</span> เรียงแบบ "ความเรียบง่าย": ถ้านับเม็ดยาเดิมไว้และขนาดยาใหม่เท่าเดิม จะแนะนำ <b>⭐ แบบเดิมของผู้ป่วย</b> เป็นอันดับ 1 — ยกเว้นแบบเดิมกินยาก (มากกว่า 2 ระดับขนาด หรือกินเกิน 3 เม็ดในวันเดียว) จะขึ้นป้ายเตือนและเรียงตามปกติ</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/02</span> เรียงแบบ "เม็ดยาน้อยชนิด": ตัวเลือกที่กินเต็มเม็ด (ไม่ต้องแบ่งครึ่ง) ขึ้นก่อน แล้วจึงเรียงตามจำนวนชนิดเม็ดยา</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/02</span> เพิ่มการจัดยาแบบ <b>วันเว้นวัน</b> 🔁 — ขนาดเท่ากันทุกวันที่กิน เช่น 20 mg/สัปดาห์ = 5 mg วันจันทร์ พุธ ศุกร์ อาทิตย์ (หรือกิน 5 วัน หยุดอังคาร-พฤหัส / กิน 3 วัน จันทร์ พุธ ศุกร์) โดยแบบหยุดท้ายสัปดาห์ เช่น 5 mg จันทร์–พฤหัส จะแสดงก่อนแบบวันเว้นวันเสมอ</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/02</span> จำ "ขนาดเม็ดยาที่มี" ที่เลือกไว้ครั้งล่าสุด — เปิดครั้งแรกเป็น 2 mg และ 3 mg ครั้งถัดไปใช้ค่าที่เคยเลือกในเครื่องนี้</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/10/02</span> ย้ายคำแนะนำปรับขนาดยาตาม INR ลงมาอยู่ใต้ปุ่ม "นับเม็ดยา" (เดิมอยู่ใต้ช่อง INR เป้าหมาย)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> เพิ่มชื่อผู้พัฒนาที่ท้ายหน้า "Warfarin Planner PRO V.3 โดย นพ.ธนกฤต โอลาพฤกษ์"</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ตารางการจัดยาเรียงตาม <b>ความเรียบง่าย</b> เป็นค่าเริ่มต้น (เดิมเป็น "เปลี่ยนน้อยสุด") — ถ้ากดนับเม็ดยาเดิม ระบบจะสลับเป็น "เปลี่ยนน้อยสุด" ให้อัตโนมัติเหมือนเดิม</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดเป็น <b>ครึ่งวงกลมพอดี</b> (กว้างครึ่งหนึ่งของเม็ดเต็มเป๊ะ) ให้ดูออกทันทีว่าเป็นครึ่งเม็ด — ก่อนหน้านี้กว้างเกินไปจนดูเหมือนเม็ดเต็ม</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดใน <b>ตารางการจัดยา</b> และ <b>หน้าต่างนับเม็ดยา</b> ใช้รูปครึ่งวงกลมแบบเดียวกับปฏิทิน — เดิมครอบตัดวงกลมทำให้ตัวเลข mg ขาดครึ่ง</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดวาดเป็น <b>รูปเม็ดยาที่ถูกผ่าครึ่งจริง</b> — ส่วนโค้งซ้ายกลมเต็มวง ตัดตรงด้านขวา และตัวเลข mg ยังเต็มตัว ไม่ถูกตัด (ใช้ทั้งโหมดสีและขาว-ดำ)</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินขาว-ดำ มี <b>ข้อความกำกับใต้รูปเม็ดยา</b> เช่น "2×3mg + ½×5mg" ไว้ตรวจซ้ำ</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินโหมดขาว-ดำ แสดง <b>รูปเม็ดยา</b> แล้ว (วงกลมขอบดำ มีตัวเลข mg ข้างใน) พร้อมคำอธิบายสัญลักษณ์ครึ่งเม็ดในแถบ legend — เดิมมีแต่ตัวอักษร</li>
+          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug ปุ่ม 📅 เลือกวันที่ (วันที่เริ่มกินยา / วันนัดครั้งถัดไป) ต้องกดชิดมุมขวาถึงจะขึ้นปฏิทิน — ตอนนี้กดตรงไหนของปุ่มก็ได้</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug วันที่คลาดเคลื่อน 1 วัน — วันที่เริ่มกินยาเริ่มต้น และการคำนวณวันนัดจาก "จำนวนวัน" (เกิดจากใช้เวลา UTC แทนเวลาไทย)</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug ปฏิทินที่พิมพ์ไปแล้วค้างอยู่ และติดออกไปกับการสั่งพิมพ์ครั้งถัดไป</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug โหมด "เปลี่ยนน้อยสุด" ยังอ้างอิงผลนับเม็ดยาเก่า หลังผู้ใช้พิมพ์ขนาดยาเดิมใหม่เอง (chip "เปลี่ยน N วัน" ก็ผิดตาม)</li>
@@ -1899,14 +2054,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินเปิดที่เดือนของวันเริ่มกินยา + เติมช่องว่างท้ายเดือนให้กริดเต็มสัปดาห์</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แจ้งสาเหตุชัดเจนเมื่อขนาดยาเกินเพดาน 15 mg/วัน (105 mg/สัปดาห์)</li>
           <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug หน้าเว็บใช้งานไม่ได้ทั้งหน้า เมื่อเบราว์เซอร์ปิดการเก็บข้อมูล (โหมดส่วนตัว/เปิดจากบางแอป)</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> แก้ bug ปุ่ม 📅 เลือกวันที่ (วันที่เริ่มกินยา / วันนัดครั้งถัดไป) ต้องกดชิดมุมขวาถึงจะขึ้นปฏิทิน — ตอนนี้กดตรงไหนของปุ่มก็ได้</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินโหมดขาว-ดำ แสดง <b>รูปเม็ดยา</b> แล้ว (วงกลมขอบดำ มีตัวเลข mg ข้างใน) พร้อมคำอธิบายสัญลักษณ์ครึ่งเม็ดในแถบ legend — เดิมมีแต่ตัวอักษร</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ปฏิทินขาว-ดำ มี <b>ข้อความกำกับใต้รูปเม็ดยา</b> เช่น "2×3mg + ½×5mg" ไว้ตรวจซ้ำ</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> เพิ่มชื่อผู้พัฒนาที่ท้ายหน้า "Warfarin Planner PRO V.3 โดย นพ.ธนกฤต โอลาพฤกษ์"</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ตารางการจัดยาเรียงตาม <b>ความเรียบง่าย</b> เป็นค่าเริ่มต้น (เดิมเป็น "เปลี่ยนน้อยสุด") — ถ้ากดนับเม็ดยาเดิม ระบบจะสลับเป็น "เปลี่ยนน้อยสุด" ให้อัตโนมัติเหมือนเดิม</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดเป็น <b>ครึ่งวงกลมพอดี</b> (กว้างครึ่งหนึ่งของเม็ดเต็มเป๊ะ) ให้ดูออกทันทีว่าเป็นครึ่งเม็ด — ก่อนหน้านี้กว้างเกินไปจนดูเหมือนเม็ดเต็ม</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดใน <b>ตารางการจัดยา</b> และ <b>หน้าต่างนับเม็ดยา</b> ใช้รูปครึ่งวงกลมแบบเดียวกับปฏิทิน — เดิมครอบตัดวงกลมทำให้ตัวเลข mg ขาดครึ่ง</li>
-          <li><span class="text-amber-500 dark:text-amber-400 font-medium">2026/09/06</span> ครึ่งเม็ดวาดเป็น <b>รูปเม็ดยาที่ถูกผ่าครึ่งจริง</b> — ส่วนโค้งซ้ายกลมเต็มวง ตัดตรงด้านขวา และตัวเลข mg ยังเต็มตัว ไม่ถูกตัด (ใช้ทั้งโหมดสีและขาว-ดำ)</li>
         </ul>
       </div>
       <div>
